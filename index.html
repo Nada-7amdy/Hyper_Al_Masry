@@ -7,24 +7,26 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              serif: ['Playfair Display', 'serif'],
-            },
-            colors: {
-              gold: {
-                100: '#FCF6BA',
-                200: '#FBF5B7',
-                300: '#BF953F',
-                400: '#B38728',
-                500: '#AA771C',
+      if (window.tailwind) {
+        tailwind.config = {
+          theme: {
+            extend: {
+              fontFamily: {
+                sans: ['Inter', 'sans-serif'],
+                serif: ['Playfair Display', 'serif'],
+              },
+              colors: {
+                gold: {
+                  100: '#FCF6BA',
+                  200: '#FBF5B7',
+                  300: '#BF953F',
+                  400: '#B38728',
+                  500: '#AA771C',
+                }
               }
             }
           }
-        }
+        };
       }
     </script>
     <style>
@@ -63,7 +65,6 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>
