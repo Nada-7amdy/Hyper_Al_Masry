@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, ShoppingBag, Star, Filter, ShoppingCart } from 'lucide-react';
+import { Search, Plus, ShoppingBag, Star, Filter } from 'lucide-react';
 import { Product, CartItem } from '../types';
-import { searchProducts } from '../services/mockBackend';
+import { db } from '../services/firebase';
+import { collection, getDocs } from 'firebase/firestore';
 
 interface MarketplaceProps {
   cart: CartItem[];
   addToCart: (product: Product) => void;
 }
 
-// Configuration for Category Colors (The "Village Market" Palette)
+// Configuration for Category Colors
 const CATEGORY_STYLES: Record<string, { bg: string, text: string, border: string, iconColor: string }> = {
-  'خضروات وفواكه': { bg: 'bg-[#6AA84F]/10', text: 'text-[#6AA84F]', border: 'border-[#6AA84F]/30', iconColor: '#6AA84F' }, // Olive Green
-  'لحوم ومجمدات': { bg: 'bg-[#2E86AB]/10', text: 'text-[#5DADE2]', border: 'border-[#2E86AB]/30', iconColor: '#5DADE2' }, // Cool Blue
-  'بقالة ومؤن': { bg: 'bg-[#BF953F]/10', text: 'text-[#BF953F]', border: 'border-[#BF953F]/30', iconColor: '#BF953F' }, // Gold/Beige
-  'عطارة': { bg: 'bg-[#D35400]/10', text: 'text-[#E59866]', border: 'border-[#D35400]/30', iconColor: '#E59866' }, // Spices/Orange
+  'خضروات وفواكه': { bg: 'bg-[#6AA84F]/10', text: 'text-[#6AA84F]', border: 'border-[#6AA84F]/30', iconColor: '#6AA84F' },
+  'لحوم ومجمدات': { bg: 'bg-[#2E86AB]/10', text: 'text-[#5DADE2]', border: 'border-[#2E86AB]/30', iconColor: '#5DADE2' },
+  'بقالة ومؤن': { bg: 'bg-[#BF953F]/10', text: 'text-[#BF953F]', border: 'border-[#BF953F]/30', iconColor: '#BF953F' },
+  'عطارة': { bg: 'bg-[#D35400]/10', text: 'text-[#E59866]', border: 'border-[#D35400]/30', iconColor: '#E59866' },
   'All': { bg: 'bg-white/5', text: 'text-gray-400', border: 'border-white/10', iconColor: '#999' }
 };
 
@@ -23,18 +24,40 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ cart, addToCart }) => 
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  // Gold utilities for general branding
   const goldText = "text-transparent bg-clip-text bg-gradient-to-b from-[#BF953F] via-[#FCF6BA] to-[#AA771C]";
 
   useEffect(() => {
     const fetch = async () => {
       setIsLoading(true);
-      const results = await searchProducts(query);
-      setProducts(results);
+      try {
+        // 1. Fetch from Firestore
+        const querySnapshot = await getDocs(collection(db, "products"));
+        
+        // 2. Map data
+        let realProducts = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          // Default fallbacks
+          rating: doc.data().rating || 4.8, 
+          description: doc.data().description || "منتج طازج وعالي الجودة من هايبر المصري",
+          image: doc.data().image || "https://placehold.co/400x300/1a1a1a/gold?text=Product",
+          category: doc.data().category || "عام"
+        })) as Product[];
+
+        // 3. Client-side Filter
+        if (query) {
+          realProducts = realProducts.filter(p => 
+            p.name.includes(query) || (p.description && p.description.includes(query))
+          );
+        }
+
+        setProducts(realProducts);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+      }
       setIsLoading(false);
     };
     
-    // Debounce simulation
     const timeoutId = setTimeout(fetch, 300);
     return () => clearTimeout(timeoutId);
   }, [query]);
@@ -72,7 +95,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ cart, addToCart }) => 
         </div>
       </div>
 
-      {/* Category Filter - Colorful & Accessible */}
+      {/* Category Filter */}
       <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide flex-row-reverse">
         {categories.map(cat => {
             const style = CATEGORY_STYLES[cat] || CATEGORY_STYLES['All'];
@@ -98,7 +121,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ cart, addToCart }) => 
         {isLoading ? (
             // Skeletons
             [1,2,3,4].map(i => (
-                <div key={i} className="aspect-[4/5] rounded-[2rem] bg-[#111] animate-pulse"></div>
+                <div key={i} className="aspect-[4/5] rounded-[2rem] bg-[#111] animate-pulse border border-white/5"></div>
             ))
         ) : filteredProducts.length > 0 ? (
             filteredProducts.map(product => {
@@ -126,18 +149,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ cart, addToCart }) => 
                     {/* Content */}
                     <div className="p-5 flex-1 flex flex-col justify-between">
                         <div>
-                            <h3 className="text-lg font-serif font-bold leading-tight mb-2 text-right">{product.name}</h3>
+                            <h3 className="text-lg font-serif font-bold leading-tight mb-2 text-right text-white">{product.name}</h3>
                             <p className="text-gray-400 text-xs line-clamp-2 mb-4 text-right leading-relaxed">{product.description}</p>
                         </div>
                         
                         <div className="flex items-center justify-between mt-2">
-                            {/* Clearer 'Add to Cart' Button */}
                             <button 
                                 onClick={() => addToCart(product)}
                                 className="px-4 py-2 rounded-xl bg-[#2a2a2a] hover:bg-[#6AA84F] hover:text-white border border-white/5 flex items-center gap-2 transition-all active:scale-95 group/btn"
                             >
                                 <Plus size={16} className="text-[#6AA84F] group-hover/btn:text-white transition-colors" />
-                                <span className="text-xs font-bold">أضف للسلة</span>
+                                <span className="text-xs font-bold text-gray-300 group-hover/btn:text-white">أضف للسلة</span>
                             </button>
 
                             <div className="text-right">
@@ -153,7 +175,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ cart, addToCart }) => 
         ) : (
             <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-500">
                 <Filter size={48} className="mb-4 opacity-20" />
-                <p>عفواً، لم نجد منتجات بهذا الاسم.</p>
+                <p>عفواً، المخزن فاضي أو مفيش منتج بالاسم ده.</p>
             </div>
         )}
       </div>

@@ -101,6 +101,27 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
   );
 };
 
+// CRUD Operations for Admin Dashboard
+export const getProducts = async (): Promise<Product[]> => {
+  await new Promise(resolve => setTimeout(resolve, 300));
+  return [...PRODUCTS_DB];
+};
+
+export const addProduct = async (product: Omit<Product, 'id'>) => {
+   await new Promise(resolve => setTimeout(resolve, 300));
+   const newProduct = { ...product, id: Math.random().toString(36).substr(2, 9) };
+   PRODUCTS_DB.push(newProduct as Product);
+   return newProduct;
+};
+
+export const deleteProduct = async (id: string) => {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const index = PRODUCTS_DB.findIndex(p => p.id === id);
+    if (index > -1) {
+        PRODUCTS_DB.splice(index, 1);
+    }
+};
+
 // SIMULATING: Analytics API
 export const getSalesStats = async () => {
     return {
