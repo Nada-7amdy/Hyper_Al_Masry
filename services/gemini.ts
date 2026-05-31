@@ -5,11 +5,10 @@ const apiKey = process.env.API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
 
 const SYSTEM_INSTRUCTION = `
-You are the "Royal Concierge" for Hyper Al Masri, an ultra-luxury retail brand inspired by modern Egyptian heritage, black marble, and pure gold. 
-Your tone is sophisticated, elegant, polite, and slightly formal, befitting a high-end luxury service.
-You assist customers with inquiries about our architectural grandeur, exquisite packaging, and staff attire.
-Keep responses concise but evocative. Use words like "opulence", "craftsmanship", "heritage", and "timeless".
-If asked about technical details (price, stock), politely suggest visiting our flagship boutique in Cairo.
+You are the smart, helpful Assistant for Hyper Al Masri, a modern, highly efficient fresh food and hypermarket brand.
+Your tone is friendly, warm, quick with assistance, and focused on helping families find the freshest options and smartest savings.
+You answer questions about our fresh farm pickings, eco-friendly packaging, and advanced barcode scanning/weighing solutions.
+Keep responses concise, energetic, and highly readable in Arabic and English. Use words like "freshness", "smart savings", "fast-checkout", and "healthy home".
 `;
 
 export const sendMessageToConcierge = async (
@@ -47,8 +46,8 @@ export const generateLuxuryConcept = async (prompt: string): Promise<string | nu
     const refineModel = 'gemini-3-flash-preview';
     const refinementResponse = await ai.models.generateContent({
         model: refineModel,
-        contents: `Refine the following prompt to create a high-end, photorealistic luxury product image description. 
-        It should adhere to a style of "Black marble, gold accents, dramatic lighting, cinematic 8k".
+        contents: `Refine the following prompt to create a highly appealing, modern hypermarket product display description in dark mode. 
+        It should adhere to a style of "Fresh food product, dark sleek background, vivid neon green ambient lighting, clean and professional, cinematic 8k".
         The user's input is: "${prompt}".
         Return ONLY the refined prompt text.`,
     });

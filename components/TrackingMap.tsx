@@ -29,7 +29,7 @@ export const TrackingMap: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const goldText = "text-transparent bg-clip-text bg-gradient-to-b from-[#BF953F] via-[#FCF6BA] to-[#AA771C]";
+  const goldText = "text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300";
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-700 h-full min-h-[600px]">
@@ -48,7 +48,7 @@ export const TrackingMap: React.FC = () => {
                     return (
                         <div key={s} className={`relative flex gap-4 ${isActive ? 'opacity-100' : 'opacity-30'}`}>
                             <div className={`w-10 h-10 rounded-full border flex-shrink-0 flex items-center justify-center z-10 bg-[#0d0d0d] transition-all duration-500 ${
-                                isActive ? 'border-[#BF953F] text-[#BF953F]' : 'border-white/10 text-gray-500'
+                                isActive ? 'border-emerald-400 text-emerald-400' : 'border-white/10 text-gray-500'
                             }`}>
                                 {s === 4 ? <Navigation size={18} /> : <CheckCircle size={18} />}
                             </div>
@@ -72,7 +72,7 @@ export const TrackingMap: React.FC = () => {
                         <p className="text-xs text-gray-400 uppercase tracking-widest">Your Concierge</p>
                         <p className="font-bold">Mohamed Ali</p>
                     </div>
-                    <button className="ml-auto w-10 h-10 rounded-full bg-[#BF953F] text-black flex items-center justify-center hover:scale-110 transition-transform">
+                    <button className="ml-auto w-10 h-10 rounded-full bg-emerald-500 text-black flex items-center justify-center hover:scale-110 transition-transform">
                         <Phone size={18} />
                     </button>
                 </div>
@@ -84,19 +84,19 @@ export const TrackingMap: React.FC = () => {
             <div className="absolute inset-0 opacity-40 bg-[url('https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/12/2412/1654.png')] bg-cover grayscale hover:grayscale-0 transition-all duration-1000"></div>
             
             {/* Radar Effect */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border border-[#BF953F]/20 rounded-full animate-ping"></div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-[#BF953F]/10 rounded-full flex items-center justify-center">
-                 <div className="w-4 h-4 bg-[#BF953F] rounded-full shadow-[0_0_20px_#BF953F]"></div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border border-emerald-500/20 rounded-full animate-ping"></div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-emerald-500/10 rounded-full flex items-center justify-center">
+                 <div className="w-4 h-4 bg-[#10B981] rounded-full shadow-[0_0_20px_#10B981]"></div>
             </div>
 
             {/* Simulated Live Route */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                <path d="M 200 500 Q 400 300 600 250" stroke="#BF953F" strokeWidth="2" fill="none" strokeDasharray="10 5" className="animate-[dash_20s_linear_infinite]" />
+                <path d="M 200 500 Q 400 300 600 250" stroke="#10B981" strokeWidth="2" fill="none" strokeDasharray="10 5" className="animate-[dash_20s_linear_infinite]" />
             </svg>
 
             <div className="absolute top-8 right-8 bg-black/80 backdrop-blur-md p-4 rounded-xl border border-white/10">
                 <div className="flex items-center gap-3">
-                    <Clock size={16} className="text-[#BF953F]" />
+                    <Clock size={16} className="text-emerald-400" />
                     <span className="font-mono text-sm">ETA: 08:22 PM</span>
                 </div>
             </div>

@@ -8,8 +8,8 @@ export const DesignAtelier: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Gold Gradient Classes
-  const goldText = "text-transparent bg-clip-text bg-gradient-to-b from-[#BF953F] via-[#FCF6BA] to-[#AA771C]";
-  const goldGradient = "bg-gradient-to-b from-[#BF953F] via-[#FCF6BA] via-[#B38728] via-[#FBF5B7] to-[#AA771C]";
+  const goldText = "text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-emerald-500 to-green-500";
+  const goldGradient = "bg-gradient-to-r from-emerald-400 via-emerald-500 to-green-500";
 
   const handleGenerate = async () => {
     if (!prompt.trim() || isGenerating) return;
@@ -29,18 +29,18 @@ export const DesignAtelier: React.FC = () => {
       <div className="space-y-8">
         <div>
           <h2 className="text-4xl font-serif mb-4">The Atelier</h2>
-          <p className="text-gray-400 leading-relaxed border-l-2 border-[#BF953F]/30 pl-4">
+          <p className="text-gray-400 leading-relaxed border-l-2 border-[#10B981]/30 pl-4">
             Visualize your own luxury concepts. Describe a packaging idea, a uniform detail, or an architectural feature, and let our AI artisan sketch it for you in our signature style.
           </p>
         </div>
 
         <div className="space-y-4">
-          <label className="text-[10px] uppercase tracking-widest font-bold text-[#BF953F]">Vision Description</label>
+          <label className="text-[10px] uppercase tracking-widest font-bold text-[#10B981]">Vision Description</label>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="E.g. A matte black perfume bottle with gold filigree geometry, sitting on black sand..."
-            className="w-full h-32 bg-[#0d0d0d] border border-white/10 rounded-2xl p-6 text-white focus:outline-none focus:border-[#BF953F] focus:ring-1 focus:ring-[#BF953F]/50 transition-all resize-none placeholder-gray-700"
+            className="w-full h-32 bg-[#0d0d0d] border border-white/10 rounded-2xl p-6 text-white focus:outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981]/50 transition-all resize-none placeholder-gray-700"
           />
           
           <button
@@ -52,7 +52,7 @@ export const DesignAtelier: React.FC = () => {
                 : 'hover:opacity-90 active:scale-95'
             }`}
             style={{ 
-              background: isGenerating || !prompt.trim() ? '' : 'linear-gradient(135deg, #BF953F 0%, #AA771C 100%)',
+              background: isGenerating || !prompt.trim() ? '' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
               color: isGenerating || !prompt.trim() ? '' : '#000'
             }}
           >
@@ -75,7 +75,7 @@ export const DesignAtelier: React.FC = () => {
              <button
                 key={i}
                 onClick={() => setPrompt(suggestion)}
-                className="text-left p-4 rounded-xl bg-white/5 border border-white/5 hover:border-[#BF953F]/30 hover:bg-white/10 transition-all text-xs text-gray-400 hover:text-[#BF953F]"
+                className="text-left p-4 rounded-xl bg-white/5 border border-white/5 hover:border-[#10B981]/30 hover:bg-white/10 transition-all text-xs text-gray-400 hover:text-[#10B981]"
              >
                 "{suggestion}"
              </button>
@@ -122,9 +122,9 @@ export const DesignAtelier: React.FC = () => {
          {isGenerating && (
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center z-20">
                <div className="relative">
-                  <div className="w-16 h-16 rounded-full border-2 border-[#BF953F]/20 border-t-[#BF953F] animate-spin"></div>
+                  <div className="w-16 h-16 rounded-full border-2 border-[#10B981]/20 border-t-[#10B981] animate-spin"></div>
                   <div className="absolute inset-0 flex items-center justify-center">
-                     <Sparkles size={16} className="text-[#BF953F] animate-pulse" />
+                     <Sparkles size={16} className="text-[#10B981] animate-pulse" />
                   </div>
                </div>
                <p className={`mt-6 text-xs uppercase tracking-[0.3em] ${goldText} font-bold animate-pulse`}>Rendering Luxury</p>

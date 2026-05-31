@@ -14,9 +14,9 @@ const App = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  // Gold Gradient Classes
-  const goldGradient = "bg-gradient-to-b from-[#BF953F] via-[#FCF6BA] via-[#B38728] via-[#FBF5B7] to-[#AA771C]";
-  const goldText = "text-transparent bg-clip-text bg-gradient-to-b from-[#BF953F] via-[#FCF6BA] to-[#AA771C]";
+  // Mint Neon Gradient Classes for fresh, economical high contrast
+  const goldGradient = "bg-gradient-to-r from-emerald-400 via-emerald-500 to-green-500";
+  const goldText = "text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400";
 
   // Cart Logic (Redux Simulation)
   const addToCart = (product: Product) => {
@@ -62,12 +62,12 @@ const App = () => {
       <div className={`flex flex-col items-center ${scale} transition-transform duration-500`}>
         {/* Outer Ring with Real Gold Gradient */}
         <div 
-          className="w-32 h-32 rounded-full p-[3px] shadow-[0_0_30px_rgba(191,149,63,0.3)]"
-          style={{ background: 'linear-gradient(135deg, #BF953F 0%, #FCF6BA 45%, #B38728 50%, #FBF5B7 55%, #AA771C 100%)' }}
+          className="w-32 h-32 rounded-full p-[3px] shadow-[0_0_30px_rgba(16,185,129,0.3)]"
+          style={{ background: 'linear-gradient(135deg, #10B981 0%, #34D399 45%, #059669 50%, #6EE7B7 55%, #047857 100%)' }}
         >
           <div className="w-full h-full rounded-full bg-[#121212] flex items-center justify-center relative overflow-hidden">
              {/* Decorative inner lines */}
-             <div className="absolute inset-2 rounded-full border border-[#BF953F]/20"></div>
+             <div className="absolute inset-2 rounded-full border border-emerald-500/20"></div>
              
              {/* Intertwined Monogram with Parallax */}
              <div className="relative font-serif flex items-center justify-center" style={innerStyle}>
@@ -87,11 +87,11 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white font-sans overflow-hidden relative selection:bg-[#BF953F] selection:text-black">
+    <div className="min-h-screen bg-[#080808] text-white font-sans overflow-hidden relative selection:bg-emerald-500 selection:text-black">
       
       {/* Ambient Lighting Blobs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#BF953F]/10 blur-[120px] rounded-full animate-pulse"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#AA771C]/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }}></div>
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full animate-pulse"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-teal-500/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }}></div>
 
       {/* Cart Drawer (Overlay) */}
       <div className={`fixed inset-y-0 right-0 w-full md:w-[450px] bg-[#111] border-l border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] transform transition-transform duration-500 z-[100] ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
@@ -113,7 +113,7 @@ const App = () => {
                               <img src={item.image} alt={item.name} className="w-20 h-20 object-cover rounded-lg" />
                               <div className="flex-1 text-right">
                                   <h4 className="font-serif font-bold text-sm">{item.name}</h4>
-                                  <p className="text-xs text-[#BF953F] mt-1">{item.price.toLocaleString()} EGP</p>
+                                  <p className="text-xs text-emerald-400 mt-1">{item.price.toLocaleString()} EGP</p>
                                   <div className="flex justify-between items-center mt-3">
                                       <span className="text-xs text-gray-500">العدد: {item.quantity}</span>
                                       <button onClick={() => removeFromCart(item.id)} className="text-xs text-red-400 hover:text-red-300">حذف</button>
@@ -142,9 +142,9 @@ const App = () => {
 
       {/* Header */}
       <header className="border-b border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3 group cursor-pointer" onClick={() => setActiveTab(Tab.EXTERIOR)}>
-            <div className="w-10 h-10 rounded-full p-[1px]" style={{ background: 'linear-gradient(to bottom, #BF953F, #AA771C)' }}>
+            <div className="w-10 h-10 rounded-full p-[1px]" style={{ background: 'linear-gradient(to bottom, #10B981, #059669)' }}>
               <div className="w-full h-full rounded-full bg-[#1c1c1c] flex items-center justify-center">
                 <span className={`font-serif text-[10px] ${goldText} font-bold`}>Hم</span>
               </div>
@@ -161,7 +161,7 @@ const App = () => {
                 <button 
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`hover:text-[#FCF6BA] transition-all relative py-2 ${activeTab === tab ? 'text-[#D4AF37]' : ''}`}
+                    className={`hover:text-emerald-300 transition-all relative py-2 ${activeTab === tab ? 'text-emerald-400' : ''}`}
                 >
                     {tab === Tab.EXTERIOR ? 'الرئيسية' : 'الجودة'}
                 </button>
@@ -172,27 +172,27 @@ const App = () => {
 
             {/* Application Feature Tabs */}
             <nav className="flex gap-4 text-[10px] uppercase tracking-[0.25em] font-bold">
-                <button onClick={() => setActiveTab(Tab.MARKET)} className={`flex flex-col items-center gap-1 group ${activeTab === Tab.MARKET ? 'text-[#BF953F]' : 'text-gray-400'}`}>
-                    <ShoppingBag size={18} className="group-hover:text-[#FCF6BA] transition-colors" />
+                <button onClick={() => setActiveTab(Tab.MARKET)} className={`flex flex-col items-center gap-1 group ${activeTab === Tab.MARKET ? 'text-emerald-400' : 'text-gray-400'}`}>
+                    <ShoppingBag size={18} className="group-hover:text-emerald-300 transition-colors" />
                     <span className="hidden md:block">السوق</span>
                 </button>
-                <button onClick={() => setActiveTab(Tab.TRACKING)} className={`flex flex-col items-center gap-1 group ${activeTab === Tab.TRACKING ? 'text-[#BF953F]' : 'text-gray-400'}`}>
-                    <Truck size={18} className="group-hover:text-[#FCF6BA] transition-colors" />
+                <button onClick={() => setActiveTab(Tab.TRACKING)} className={`flex flex-col items-center gap-1 group ${activeTab === Tab.TRACKING ? 'text-emerald-400' : 'text-gray-400'}`}>
+                    <Truck size={18} className="group-hover:text-emerald-300 transition-colors" />
                     <span className="hidden md:block">تتبع</span>
                 </button>
-                <button onClick={() => setActiveTab(Tab.ATELIER)} className={`flex flex-col items-center gap-1 group ${activeTab === Tab.ATELIER ? 'text-[#BF953F]' : 'text-gray-400'}`}>
-                    <Bot size={18} className="group-hover:text-[#FCF6BA] transition-colors" />
+                <button onClick={() => setActiveTab(Tab.ATELIER)} className={`flex flex-col items-center gap-1 group ${activeTab === Tab.ATELIER ? 'text-emerald-400' : 'text-gray-400'}`}>
+                    <Bot size={18} className="group-hover:text-emerald-300 transition-colors" />
                     <span className="hidden md:block">مساعدك</span>
                 </button>
-                 <button onClick={() => setActiveTab(Tab.ADMIN)} className={`flex flex-col items-center gap-1 group ${activeTab === Tab.ADMIN ? 'text-[#BF953F]' : 'text-gray-400'}`}>
-                    <Activity size={18} className="group-hover:text-[#FCF6BA] transition-colors" />
+                 <button onClick={() => setActiveTab(Tab.ADMIN)} className={`flex flex-col items-center gap-1 group ${activeTab === Tab.ADMIN ? 'text-emerald-400' : 'text-gray-400'}`}>
+                    <Activity size={18} className="group-hover:text-emerald-300 transition-colors" />
                     <span className="hidden md:block">إدارة</span>
                 </button>
             </nav>
 
             {/* Cart Trigger */}
             <button onClick={() => setIsCartOpen(true)} className="relative p-2 hover:bg-white/5 rounded-full transition-colors ml-4">
-                <ShoppingCart size={20} className="text-[#BF953F]" />
+                <ShoppingCart size={20} className="text-emerald-400" />
                 {cart.length > 0 && (
                     <div className="absolute top-0 right-0 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center text-[8px] font-bold">{cart.length}</div>
                 )}
@@ -210,7 +210,7 @@ const App = () => {
                {/* Note: In flex-row, justify-between pushes items apart. We reverse order visually for RTL feel if needed, or keep branding left/text right */}
               
               <div className="flex-1 order-2 md:order-1 text-right">
-                 <p className="text-gray-500 text-sm max-w-sm leading-relaxed italic border-r-2 border-[#BF953F]/30 pr-4 ml-auto">
+                 <p className="text-gray-500 text-sm max-w-sm leading-relaxed italic border-r-2 border-emerald-500/30 pr-4 ml-auto">
                     "الجودة اللي تستاهلها بيتك، بأسعار على قد الإيد. هايبر المصري بيجمع بين أصالة الريف ونظام المدينة."
                  </p>
               </div>
@@ -218,14 +218,14 @@ const App = () => {
               <div className="space-y-2 order-1 md:order-2 text-right">
                 <div className="flex items-center gap-2 justify-end">
                   <span className={`text-[10px] uppercase tracking-[0.4em] font-bold ${goldText}`}>خيرات بلدنا</span>
-                  <Sparkles size={14} className="text-[#BF953F]" />
+                  <Sparkles size={14} className="text-emerald-400" />
                 </div>
                 <h2 className="text-5xl font-serif">هايبر المصري</h2>
                 <div className="flex gap-3 justify-end mt-2 text-gray-400 text-sm font-bold">
                     <span>خضروات وفواكه</span>
-                    <span className="text-[#BF953F]">•</span>
+                    <span className="text-emerald-400">•</span>
                     <span>مجمدات ولحوم</span>
-                    <span className="text-[#BF953F]">•</span>
+                    <span className="text-emerald-400">•</span>
                     <span>بقالة وعطارة</span>
                 </div>
               </div>
@@ -256,7 +256,7 @@ const App = () => {
                   >
                     هايبر المصري
                   </h3>
-                  <div className={`h-[2px] w-48 mx-auto ${goldGradient} shadow-lg shadow-[#BF953F]/20`}></div>
+                  <div className={`h-[2px] w-48 mx-auto ${goldGradient} shadow-lg shadow-emerald-500/20`}></div>
                   <p className="text-white/40 text-xl tracking-[0.2em] uppercase font-light translate-z-10 font-sans">
                     بقالة • مجمدات • عطارة
                   </p>
@@ -266,7 +266,7 @@ const App = () => {
             </div>
             
             <div className="flex justify-center mt-12">
-                 <button onClick={() => setActiveTab(Tab.MARKET)} className={`px-12 py-5 rounded-full font-bold tracking-wider flex items-center gap-4 ${goldGradient} text-black shadow-[0_0_50px_rgba(191,149,63,0.4)] hover:scale-105 transition-transform`}>
+                 <button onClick={() => setActiveTab(Tab.MARKET)} className={`px-12 py-5 rounded-full font-bold tracking-wider flex items-center gap-4 ${goldGradient} text-black shadow-[0_0_50px_rgba(16,185,129,0.4)] hover:scale-105 transition-transform`}>
                      تسوق الآن <ShoppingBag />
                  </button>
             </div>
@@ -294,18 +294,18 @@ const App = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                {/* Premium Bag */}
                <div className="group relative aspect-square rounded-[3rem] bg-[#0d0d0d] border border-white/5 flex flex-col items-center justify-center p-12 overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-[6px] bg-gradient-to-r from-[#BF953F] via-[#FCF6BA] to-[#AA771C]"></div>
+                  <div className="absolute top-0 left-0 w-full h-[6px] bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-500"></div>
                   <div className="w-64 h-80 bg-[#121212] shadow-[0_30px_60px_rgba(0,0,0,0.5)] rounded-t-lg border border-white/5 relative transform group-hover:-translate-y-4 transition-transform duration-700">
                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex gap-12">
-                        <div className="w-1.5 h-16 bg-[#333] rounded-full group-hover:bg-[#BF953F] transition-colors"></div>
-                        <div className="w-1.5 h-16 bg-[#333] rounded-full group-hover:bg-[#BF953F] transition-colors"></div>
+                        <div className="w-1.5 h-16 bg-[#333] rounded-full group-hover:bg-emerald-500 transition-colors"></div>
+                        <div className="w-1.5 h-16 bg-[#333] rounded-full group-hover:bg-emerald-500 transition-colors"></div>
                      </div>
                      <div className="h-full w-full flex flex-col items-center justify-center p-8">
                         <LogoComponent size="md" />
                         <h4 className={`text-2xl font-serif mt-6 ${goldText} font-bold`}>هايبر المصري</h4>
                      </div>
                   </div>
-                  <div className="mt-8 text-sm font-bold tracking-widest text-gray-600 group-hover:text-[#BF953F] transition-colors">شنط صديقة للبيئة وقوية</div>
+                  <div className="mt-8 text-sm font-bold tracking-widest text-gray-600 group-hover:text-emerald-400 transition-colors">شنط صديقة للبيئة وقوية</div>
                </div>
             </div>
           </div>
@@ -317,14 +317,14 @@ const App = () => {
              <div className="flex flex-col lg:flex-row gap-8 justify-between lg:items-end border-b border-white/5 pb-8">
                <div className="space-y-2">
                  <div className="flex items-center gap-2">
-                   <Bot size={14} className="text-[#BF953F]" />
+                   <Bot size={14} className="text-emerald-400" />
                    <span className={`text-[10px] uppercase tracking-[0.4em] font-bold ${goldText}`}>ذكاء اصطناعي</span>
                  </div>
                  <h2 className="text-4xl font-serif">المساعد الذكي</h2>
                </div>
                <div className="flex gap-4">
                  <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/5">
-                   <div className="w-2 h-2 rounded-full bg-[#BF953F]"></div>
+                   <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
                    <span className="text-[10px] uppercase tracking-widest text-gray-400">Gemini 3.0 Pro</span>
                  </div>
                </div>
@@ -333,17 +333,17 @@ const App = () => {
              <div className="grid grid-cols-1 gap-16">
                <section>
                  <div className="flex items-center gap-4 mb-6">
-                   <div className="w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center border border-[#BF953F]/20 text-[#BF953F]">
+                   <div className="w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center border border-emerald-500/20 text-emerald-400">
                      <Bot size={16} />
                    </div>
                    <h3 className="text-lg font-serif tracking-wide text-gray-200">خدمة العملاء الآلية</h3>
                  </div>
                  <Concierge />
                </section>
-               <div className="h-px w-full bg-gradient-to-r from-transparent via-[#BF953F]/20 to-transparent"></div>
+               <div className="h-px w-full bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent"></div>
                <section>
                  <div className="flex items-center gap-4 mb-6">
-                   <div className="w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center border border-[#BF953F]/20 text-[#BF953F]">
+                   <div className="w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center border border-emerald-500/20 text-emerald-400">
                      <PenTool size={16} />
                    </div>
                    <h3 className="text-lg font-serif tracking-wide text-gray-200">تصميم وتخيل</h3>
