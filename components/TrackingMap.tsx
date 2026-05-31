@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { MapPin, Navigation, Phone, CheckCircle, Clock } from 'lucide-react';
 import { OrderStatus } from '../types';
 
-export const TrackingMap: React.FC = () => {
+export const TrackingMap = memo(() => {
   const [status, setStatus] = useState<OrderStatus>({
     step: 1,
     label: "Processing Order",
@@ -34,12 +34,12 @@ export const TrackingMap: React.FC = () => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-700 h-full min-h-[600px]">
         {/* Status Panel */}
-        <div className="lg:col-span-1 bg-[#0d0d0d] rounded-[2rem] border border-white/10 p-8 flex flex-col h-full">
-            <h2 className="text-3xl font-serif mb-2">Order #8821</h2>
-            <p className="text-gray-500 text-xs uppercase tracking-widest mb-8">Concierge Delivery</p>
+        <div className="lg:col-span-1 bg-white dark:bg-[#0d0d0d] rounded-[2rem] border border-slate-200 dark:border-white/10 p-8 flex flex-col h-full shadow-md dark:shadow-none">
+            <h2 className="text-3xl font-serif mb-2 text-slate-800 dark:text-white">Order #8821</h2>
+            <p className="text-slate-500 dark:text-gray-500 text-xs uppercase tracking-widest mb-8">Concierge Delivery</p>
 
             <div className="space-y-8 relative">
-                <div className="absolute left-[19px] top-2 bottom-2 w-[2px] bg-white/5"></div>
+                <div className="absolute left-[19px] top-2 bottom-2 w-[2px] bg-slate-100 dark:bg-white/5"></div>
                 
                 {[1, 2, 3, 4].map((s) => {
                     const isActive = status.step >= s;
@@ -47,16 +47,16 @@ export const TrackingMap: React.FC = () => {
                     
                     return (
                         <div key={s} className={`relative flex gap-4 ${isActive ? 'opacity-100' : 'opacity-30'}`}>
-                            <div className={`w-10 h-10 rounded-full border flex-shrink-0 flex items-center justify-center z-10 bg-[#0d0d0d] transition-all duration-500 ${
-                                isActive ? 'border-emerald-400 text-emerald-400' : 'border-white/10 text-gray-500'
+                            <div className={`w-10 h-10 rounded-full border flex-shrink-0 flex items-center justify-center z-10 bg-white dark:bg-[#0d0d0d] transition-all duration-500 ${
+                                isActive ? 'border-emerald-500 text-emerald-500 dark:border-emerald-400 dark:text-emerald-400' : 'border-slate-200 dark:border-white/10 text-slate-400 dark:text-gray-500'
                             }`}>
                                 {s === 4 ? <Navigation size={18} /> : <CheckCircle size={18} />}
                             </div>
                             <div className="pt-2">
-                                <h4 className={`font-bold text-sm ${isCurrent ? goldText : 'text-gray-300'}`}>
+                                <h4 className={`font-bold text-sm ${isCurrent ? goldText : 'text-slate-700 dark:text-gray-300'}`}>
                                     {s === 1 ? 'Order Confirmed' : s === 2 ? 'Quality Check' : s === 3 ? 'Out for Delivery' : 'Arriving Soon'}
                                 </h4>
-                                <p className="text-xs text-gray-500 mt-1">
+                                <p className="text-xs text-slate-500 dark:text-gray-500 mt-1">
                                     {isCurrent ? status.label : 'Completed'}
                                 </p>
                             </div>
@@ -65,14 +65,14 @@ export const TrackingMap: React.FC = () => {
                 })}
             </div>
 
-            <div className="mt-auto pt-8 border-t border-white/10">
-                <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl">
-                    <div className="w-12 h-12 rounded-full bg-gray-800 bg-[url('https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=100')] bg-cover"></div>
+            <div className="mt-auto pt-8 border-t border-slate-200 dark:border-white/10">
+                <div className="flex items-center gap-4 bg-slate-50 dark:bg-white/5 p-4 rounded-xl border border-slate-150 dark:border-transparent">
+                    <div className="w-12 h-12 rounded-full bg-slate-200 bg-[url('https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=100')] bg-cover"></div>
                     <div>
-                        <p className="text-xs text-gray-400 uppercase tracking-widest">Your Concierge</p>
-                        <p className="font-bold">Mohamed Ali</p>
+                        <p className="text-xs text-slate-500 dark:text-gray-400 uppercase tracking-widest">Your Concierge</p>
+                        <p className="font-bold text-slate-800 dark:text-white">Mohamed Ali</p>
                     </div>
-                    <button className="ml-auto w-10 h-10 rounded-full bg-emerald-500 text-black flex items-center justify-center hover:scale-110 transition-transform">
+                    <button className="ml-auto w-10 h-10 rounded-full bg-emerald-500 text-black flex items-center justify-center hover:scale-110 transition-transform shadow-md">
                         <Phone size={18} />
                     </button>
                 </div>
@@ -80,8 +80,8 @@ export const TrackingMap: React.FC = () => {
         </div>
 
         {/* Map Simulation */}
-        <div className="lg:col-span-2 bg-[#111] rounded-[2rem] border border-white/5 relative overflow-hidden group">
-            <div className="absolute inset-0 opacity-40 bg-[url('https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/12/2412/1654.png')] bg-cover grayscale hover:grayscale-0 transition-all duration-1000"></div>
+        <div className="lg:col-span-2 bg-slate-100 dark:bg-[#111] rounded-[2rem] border border-slate-200 dark:border-white/5 relative overflow-hidden group shadow-md dark:shadow-none">
+            <div className="absolute inset-0 opacity-40 bg-[url('https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/12/2412/1654.png')] dark:bg-[url('https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/12/2412/1654.png')] bg-cover grayscale hover:grayscale-0 transition-all duration-1000"></div>
             
             {/* Radar Effect */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border border-emerald-500/20 rounded-full animate-ping"></div>
@@ -94,13 +94,15 @@ export const TrackingMap: React.FC = () => {
                 <path d="M 200 500 Q 400 300 600 250" stroke="#10B981" strokeWidth="2" fill="none" strokeDasharray="10 5" className="animate-[dash_20s_linear_infinite]" />
             </svg>
 
-            <div className="absolute top-8 right-8 bg-black/80 backdrop-blur-md p-4 rounded-xl border border-white/10">
+            <div className="absolute top-8 right-8 bg-white/95 dark:bg-black/80 backdrop-blur-md p-4 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
                 <div className="flex items-center gap-3">
-                    <Clock size={16} className="text-emerald-400" />
-                    <span className="font-mono text-sm">ETA: 08:22 PM</span>
+                    <Clock size={16} className="text-emerald-500 dark:text-emerald-400" />
+                    <span className="font-mono text-sm text-slate-850 dark:text-white">ETA: 08:22 PM</span>
                 </div>
             </div>
         </div>
     </div>
   );
-};
+});
+
+TrackingMap.displayName = "TrackingMap";

@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Store, ShoppingBag, Shirt, Award, MapPin, Sparkles, Bot, PenTool, LayoutGrid, Truck, Activity, X, CreditCard, ShoppingCart } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Store, ShoppingBag, Shirt, Award, MapPin, Sparkles, Bot, PenTool, LayoutGrid, Truck, Activity, X, CreditCard, ShoppingCart, Sun, Moon } from 'lucide-react';
 import { Tab, Product, CartItem } from './types';
 import { Concierge } from './components/Concierge';
 import { DesignAtelier } from './components/DesignAtelier';
@@ -13,6 +13,24 @@ const App = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+
+  // Theme State
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('almasri_theme') as 'light' | 'dark') || 'dark';
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+      body.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+      body.classList.remove('dark');
+    }
+    localStorage.setItem('almasri_theme', theme);
+  }, [theme]);
 
   // Mint Neon Gradient Classes for fresh, economical high contrast
   const goldGradient = "bg-gradient-to-r from-emerald-400 via-emerald-500 to-green-500";
@@ -87,29 +105,29 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white font-sans overflow-hidden relative selection:bg-emerald-500 selection:text-black">
+    <div className="min-h-screen bg-slate-50 text-slate-800 dark:bg-[#080808] dark:text-white font-sans overflow-hidden relative selection:bg-emerald-500 selection:text-black transition-colors duration-300">
       
       {/* Ambient Lighting Blobs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full animate-pulse"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-teal-500/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }}></div>
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[120px] rounded-full animate-pulse"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-teal-500/5 dark:bg-teal-500/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }}></div>
 
       {/* Cart Drawer (Overlay) */}
-      <div className={`fixed inset-y-0 right-0 w-full md:w-[450px] bg-[#111] border-l border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] transform transition-transform duration-500 z-[100] ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div className={`fixed inset-y-0 right-0 w-full md:w-[450px] bg-white dark:bg-[#111] border-l border-slate-200 dark:border-white/10 shadow-2xl dark:shadow-[0_0_100px_rgba(0,0,0,0.8)] transform transition-transform duration-500 z-[100] ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
           <div className="h-full flex flex-col p-8">
               <div className="flex justify-between items-center mb-8">
-                  <h2 className="text-2xl font-serif">Your Collection</h2>
-                  <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20} /></button>
+                  <h2 className="text-2xl font-serif text-slate-800 dark:text-white">Your Collection</h2>
+                  <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors"><X size={20} /></button>
               </div>
               
               <div className="flex-1 overflow-y-auto space-y-4 pr-2">
                   {cart.length === 0 ? (
-                      <div className="h-full flex flex-col items-center justify-center text-gray-500 opacity-50">
+                      <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 opacity-50">
                           <ShoppingBag size={48} className="mb-4" />
                           <p>Your vault is empty.</p>
                       </div>
                   ) : (
                       cart.map(item => (
-                          <div key={item.id} className="flex gap-4 bg-[#0d0d0d] p-4 rounded-xl border border-white/5">
+                          <div key={item.id} className="flex gap-4 bg-slate-50 dark:bg-[#0d0d0d] p-4 rounded-xl border border-slate-200 dark:border-white/5">
                               <img src={item.image} alt={item.name} className="w-20 h-20 object-cover rounded-lg" />
                               <div className="flex-1 text-right">
                                   <h4 className="font-serif font-bold text-sm">{item.name}</h4>
@@ -124,10 +142,10 @@ const App = () => {
                   )}
               </div>
 
-              <div className="border-t border-white/10 pt-6 mt-4 space-y-4">
+              <div className="border-t border-slate-200 dark:border-white/10 pt-6 mt-4 space-y-4">
                   <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Subtotal</span>
-                      <span>{cartTotal.toLocaleString()} EGP</span>
+                      <span className="text-gray-500 dark:text-gray-400">Subtotal</span>
+                      <span className="text-slate-750 dark:text-slate-350">{cartTotal.toLocaleString()} EGP</span>
                   </div>
                   <div className="flex justify-between text-xl font-serif font-bold">
                       <span className={goldText}>Total</span>
@@ -141,60 +159,71 @@ const App = () => {
       </div>
 
       {/* Header */}
-      <header className="border-b border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl sticky top-0 z-50">
+      <header className="border-b border-slate-200 dark:border-white/5 bg-white/80 dark:bg-[#0f0f0f]/80 text-slate-800 dark:text-white backdrop-blur-xl sticky top-0 z-50 transition-colors duration-300">
          <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3 group cursor-pointer" onClick={() => setActiveTab(Tab.EXTERIOR)}>
             <div className="w-10 h-10 rounded-full p-[1px]" style={{ background: 'linear-gradient(to bottom, #10B981, #059669)' }}>
-              <div className="w-full h-full rounded-full bg-[#1c1c1c] flex items-center justify-center">
+              <div className="w-full h-full rounded-full bg-slate-100 dark:bg-[#1c1c1c] flex items-center justify-center">
                 <span className={`font-serif text-[10px] ${goldText} font-bold`}>Hم</span>
               </div>
             </div>
             <div>
-              <h1 className="text-lg font-bold tracking-tight">هايبر المصري</h1>
+              <h1 className="text-lg font-bold tracking-tight text-slate-800 dark:text-white">هايبر المصري</h1>
               <p className={`text-[9px] uppercase tracking-[0.3em] font-bold ${goldText}`}>Hyper Al Masri</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-8">
-            <nav className="hidden md:flex gap-6 text-[10px] uppercase tracking-[0.25em] text-gray-500 font-bold">
+          <div className="flex items-center gap-4 sm:gap-6 md:gap-8">
+            <nav className="hidden lg:flex gap-6 text-[10px] uppercase tracking-[0.25em] font-bold">
                 {[Tab.EXTERIOR, Tab.PACKAGING].map((tab) => (
                 <button 
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`hover:text-emerald-300 transition-all relative py-2 ${activeTab === tab ? 'text-emerald-400' : ''}`}
+                    className={`transition-all relative py-2 ${activeTab === tab ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-gray-500 hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-300'}`}
                 >
                     {tab === Tab.EXTERIOR ? 'الرئيسية' : 'الجودة'}
                 </button>
                 ))}
             </nav>
 
-            <div className="h-6 w-px bg-white/10 hidden md:block"></div>
+            <div className="h-6 w-px bg-slate-200 dark:bg-white/10 hidden lg:block"></div>
 
             {/* Application Feature Tabs */}
             <nav className="flex gap-4 text-[10px] uppercase tracking-[0.25em] font-bold">
-                <button onClick={() => setActiveTab(Tab.MARKET)} className={`flex flex-col items-center gap-1 group ${activeTab === Tab.MARKET ? 'text-emerald-400' : 'text-gray-400'}`}>
-                    <ShoppingBag size={18} className="group-hover:text-emerald-300 transition-colors" />
+                <button onClick={() => setActiveTab(Tab.MARKET)} className={`flex flex-col items-center gap-1 group transition-colors ${activeTab === Tab.MARKET ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-300'}`}>
+                    <ShoppingBag size={18} className="group-hover:text-emerald-500 transition-colors" />
                     <span className="hidden md:block">السوق</span>
                 </button>
-                <button onClick={() => setActiveTab(Tab.TRACKING)} className={`flex flex-col items-center gap-1 group ${activeTab === Tab.TRACKING ? 'text-emerald-400' : 'text-gray-400'}`}>
-                    <Truck size={18} className="group-hover:text-emerald-300 transition-colors" />
+                <button onClick={() => setActiveTab(Tab.TRACKING)} className={`flex flex-col items-center gap-1 group transition-colors ${activeTab === Tab.TRACKING ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-300'}`}>
+                    <Truck size={18} className="group-hover:text-emerald-500 transition-colors" />
                     <span className="hidden md:block">تتبع</span>
                 </button>
-                <button onClick={() => setActiveTab(Tab.ATELIER)} className={`flex flex-col items-center gap-1 group ${activeTab === Tab.ATELIER ? 'text-emerald-400' : 'text-gray-400'}`}>
-                    <Bot size={18} className="group-hover:text-emerald-300 transition-colors" />
+                <button onClick={() => setActiveTab(Tab.ATELIER)} className={`flex flex-col items-center gap-1 group transition-colors ${activeTab === Tab.ATELIER ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-300'}`}>
+                    <Bot size={18} className="group-hover:text-emerald-500 transition-colors" />
                     <span className="hidden md:block">مساعدك</span>
                 </button>
-                 <button onClick={() => setActiveTab(Tab.ADMIN)} className={`flex flex-col items-center gap-1 group ${activeTab === Tab.ADMIN ? 'text-emerald-400' : 'text-gray-400'}`}>
-                    <Activity size={18} className="group-hover:text-emerald-300 transition-colors" />
+                 <button onClick={() => setActiveTab(Tab.ADMIN)} className={`flex flex-col items-center gap-1 group transition-colors ${activeTab === Tab.ADMIN ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-300'}`}>
+                    <Activity size={18} className="group-hover:text-emerald-500 transition-colors" />
                     <span className="hidden md:block">إدارة</span>
                 </button>
             </nav>
 
+            <div className="h-6 w-px bg-slate-200 dark:bg-white/10 hidden sm:block"></div>
+
+            {/* Premium Theme Switcher Accent Button */}
+            <button 
+                onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')} 
+                className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full transition-all text-slate-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center justify-center border border-slate-200 dark:border-transparent bg-slate-50 dark:bg-[#111]/30 ml-1"
+                title={theme === 'light' ? 'تفعيل الوضع الداكن' : 'تفعيل الوضع المضيء'}
+            >
+                {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
+
             {/* Cart Trigger */}
-            <button onClick={() => setIsCartOpen(true)} className="relative p-2 hover:bg-white/5 rounded-full transition-colors ml-4">
-                <ShoppingCart size={20} className="text-emerald-400" />
+            <button onClick={() => setIsCartOpen(true)} className="relative p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full text-slate-700 dark:text-gray-300 border border-slate-200 dark:border-transparent bg-slate-50 dark:bg-[#111]/30 transition-colors">
+                <ShoppingCart size={18} className="text-emerald-600 dark:text-emerald-400" />
                 {cart.length > 0 && (
-                    <div className="absolute top-0 right-0 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center text-[8px] font-bold">{cart.length}</div>
+                    <div className="absolute top-0 right-0 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center text-[8px] font-bold text-white">{cart.length}</div>
                 )}
             </button>
           </div>
@@ -210,7 +239,7 @@ const App = () => {
                {/* Note: In flex-row, justify-between pushes items apart. We reverse order visually for RTL feel if needed, or keep branding left/text right */}
               
               <div className="flex-1 order-2 md:order-1 text-right">
-                 <p className="text-gray-500 text-sm max-w-sm leading-relaxed italic border-r-2 border-emerald-500/30 pr-4 ml-auto">
+                 <p className="text-slate-600 dark:text-gray-400 text-sm max-w-sm leading-relaxed italic border-r-2 border-emerald-500/30 pr-4 ml-auto">
                     "الجودة اللي تستاهلها بيتك، بأسعار على قد الإيد. هايبر المصري بيجمع بين أصالة الريف ونظام المدينة."
                  </p>
               </div>
@@ -220,8 +249,8 @@ const App = () => {
                   <span className={`text-[10px] uppercase tracking-[0.4em] font-bold ${goldText}`}>خيرات بلدنا</span>
                   <Sparkles size={14} className="text-emerald-400" />
                 </div>
-                <h2 className="text-5xl font-serif">هايبر المصري</h2>
-                <div className="flex gap-3 justify-end mt-2 text-gray-400 text-sm font-bold">
+                <h2 className="text-5xl font-serif text-slate-800 dark:text-white">هايبر المصري</h2>
+                <div className="flex gap-3 justify-end mt-2 text-slate-500 dark:text-gray-400 text-sm font-bold">
                     <span>خضروات وفواكه</span>
                     <span className="text-emerald-400">•</span>
                     <span>مجمدات ولحوم</span>
@@ -285,27 +314,27 @@ const App = () => {
         {/* VIEW: PACKAGING */}
         {activeTab === Tab.PACKAGING && (
           <div className="space-y-12 animate-in fade-in duration-700">
-             <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-white/5 pb-8">
+             <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-slate-200 dark:border-white/5 pb-8">
               <div className="space-y-2">
                 <span className={`text-[10px] uppercase tracking-[0.4em] font-bold ${goldText}`}>تغليف يحفظ النعمة</span>
-                <h2 className="text-4xl font-serif">فنون التغليف</h2>
+                <h2 className="text-4xl font-serif text-slate-800 dark:text-white">فنون التغليف</h2>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                {/* Premium Bag */}
-               <div className="group relative aspect-square rounded-[3rem] bg-[#0d0d0d] border border-white/5 flex flex-col items-center justify-center p-12 overflow-hidden">
+               <div className="group relative aspect-square rounded-[3rem] bg-white dark:bg-[#0d0d0d] border border-slate-200 dark:border-white/5 flex flex-col items-center justify-center p-12 overflow-hidden shadow-sm dark:shadow-none">
                   <div className="absolute top-0 left-0 w-full h-[6px] bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-500"></div>
-                  <div className="w-64 h-80 bg-[#121212] shadow-[0_30px_60px_rgba(0,0,0,0.5)] rounded-t-lg border border-white/5 relative transform group-hover:-translate-y-4 transition-transform duration-700">
+                  <div className="w-64 h-80 bg-slate-50 dark:bg-[#121212] shadow-xl dark:shadow-[0_30px_60px_rgba(0,0,0,0.5)] rounded-t-lg border border-slate-200 dark:border-white/5 relative transform group-hover:-translate-y-4 transition-transform duration-700">
                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex gap-12">
-                        <div className="w-1.5 h-16 bg-[#333] rounded-full group-hover:bg-emerald-500 transition-colors"></div>
-                        <div className="w-1.5 h-16 bg-[#333] rounded-full group-hover:bg-emerald-500 transition-colors"></div>
+                        <div className="w-1.5 h-16 bg-slate-300 dark:bg-[#333] rounded-full group-hover:bg-emerald-500 transition-colors"></div>
+                        <div className="w-1.5 h-16 bg-slate-300 dark:bg-[#333] rounded-full group-hover:bg-emerald-500 transition-colors"></div>
                      </div>
                      <div className="h-full w-full flex flex-col items-center justify-center p-8">
                         <LogoComponent size="md" />
                         <h4 className={`text-2xl font-serif mt-6 ${goldText} font-bold`}>هايبر المصري</h4>
                      </div>
                   </div>
-                  <div className="mt-8 text-sm font-bold tracking-widest text-gray-600 group-hover:text-emerald-400 transition-colors">شنط صديقة للبيئة وقوية</div>
+                  <div className="mt-8 text-sm font-bold tracking-widest text-slate-500 dark:text-gray-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">شنط صديقة للبيئة وقوية</div>
                </div>
             </div>
           </div>
@@ -314,18 +343,18 @@ const App = () => {
         {/* VIEW: AI ATELIER */}
         {activeTab === Tab.ATELIER && (
           <div className="space-y-12 animate-in fade-in duration-700">
-             <div className="flex flex-col lg:flex-row gap-8 justify-between lg:items-end border-b border-white/5 pb-8">
+             <div className="flex flex-col lg:flex-row gap-8 justify-between lg:items-end border-b border-slate-200 dark:border-white/5 pb-8">
                <div className="space-y-2">
                  <div className="flex items-center gap-2">
-                   <Bot size={14} className="text-emerald-400" />
+                   <Bot size={14} className="text-emerald-500 dark:text-emerald-400" />
                    <span className={`text-[10px] uppercase tracking-[0.4em] font-bold ${goldText}`}>ذكاء اصطناعي</span>
                  </div>
-                 <h2 className="text-4xl font-serif">المساعد الذكي</h2>
+                 <h2 className="text-4xl font-serif text-slate-800 dark:text-white">المساعد الذكي</h2>
                </div>
                <div className="flex gap-4">
-                 <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/5">
+                 <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-white/5 rounded-full border border-slate-200 dark:border-white/5 text-slate-700 dark:text-gray-400">
                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                   <span className="text-[10px] uppercase tracking-widest text-gray-400">Gemini 3.0 Pro</span>
+                   <span className="text-[10px] uppercase tracking-widest text-slate-500 dark:text-gray-400">Gemini 3.0 Pro</span>
                  </div>
                </div>
              </div>
@@ -333,20 +362,20 @@ const App = () => {
              <div className="grid grid-cols-1 gap-16">
                <section>
                  <div className="flex items-center gap-4 mb-6">
-                   <div className="w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center border border-emerald-500/20 text-emerald-400">
+                   <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-[#1a1a1a] flex items-center justify-center border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
                      <Bot size={16} />
                    </div>
-                   <h3 className="text-lg font-serif tracking-wide text-gray-200">خدمة العملاء الآلية</h3>
+                   <h3 className="text-lg font-serif tracking-wide text-slate-800 dark:text-gray-200">خدمة العملاء الآلية</h3>
                  </div>
                  <Concierge />
                </section>
                <div className="h-px w-full bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent"></div>
                <section>
                  <div className="flex items-center gap-4 mb-6">
-                   <div className="w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center border border-emerald-500/20 text-emerald-400">
+                   <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-[#1a1a1a] flex items-center justify-center border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
                      <PenTool size={16} />
                    </div>
-                   <h3 className="text-lg font-serif tracking-wide text-gray-200">تصميم وتخيل</h3>
+                   <h3 className="text-lg font-serif tracking-wide text-slate-800 dark:text-gray-200">تصميم وتخيل</h3>
                  </div>
                  <DesignAtelier />
                </section>

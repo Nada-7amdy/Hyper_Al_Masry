@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. Global safety net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Core Security Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Schema and Boundary Validation Helpers ---
+    function isValidProduct(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 150
+        && data.price is number && data.price > 0
+        && data.category is string && data.category.size() > 0
+        && data.stock is number
+        && data.isWeightBased is bool;
+    }
+
+    function isValidInvoice(data) {
+      return data.invoiceNo is string && data.invoiceNo.size() > 0 && data.invoiceNo.size() <= 64
+        && data.timestamp is string && data.timestamp.size() <= 64
+        && data.items is list
+        && data.subtotal is number && data.subtotal >= 0
+        && data.discount is number && data.discount >= 0
+        && data.tax is number && data.tax >= 0
+        && data.total is number && data.total >= 0
+        && data.status is string && (data.status == 'synced' || data.status == 'local_pending' || data.status == 'voided');
+    }
+
+    // --- Products Collection ---
+    match /products/{productId} {
+      // Anyone can read product details to render POS catalouge
+      allow read: if true;
+      
+      // Creating is restricted to authenticated users matching correct schema
+      allow create: if isSignedIn() && isValidProduct(incoming());
+
+      // Action-driven updates
+      allow update: if (
+        // Action 1: Stock deduction/addition via increment operations, where only 'stock' is modified
+        (incoming().diff(existing()).affectedKeys().hasOnly(['stock']) && incoming().stock is number) ||
+        // Action 2: Standard full-field product updates by Managers / Executives
+        (isSignedIn() && isValidProduct(incoming()))
+      );
+
+      // Deleting products is restricted to authenticated managers
+      allow delete: if isSignedIn();
+    }
+
+    // --- Invoices Collection ---
+    match /invoices/{invoiceId} {
+      // Authenticated POS terminals can scan and read invoices
+      allow read: if isSignedIn();
+      
+      // Anyone logged in as a valid POS cashier can write invoices
+      allow create: if isSignedIn() && isValidInvoice(incoming());
+      
+      // Invoices cannot be deleted, but can be voided (only changing 'status' field to 'voided')
+      allow update: if (
+        isSignedIn() && 
+        isValidInvoice(incoming()) && 
+        incoming().diff(existing()).affectedKeys().hasOnly(['status']) && 
+        incoming().status == 'voided' && 
+        existing().status != 'voided'
+      );
+      
+      // Absolute Immortality Rule: deleting invoices is strictly blocked
+      allow delete: if false;
+    }
+  }
+}

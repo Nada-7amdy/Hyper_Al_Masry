@@ -28,8 +28,8 @@ export const DesignAtelier: React.FC = () => {
       {/* Controls Section */}
       <div className="space-y-8">
         <div>
-          <h2 className="text-4xl font-serif mb-4">The Atelier</h2>
-          <p className="text-gray-400 leading-relaxed border-l-2 border-[#10B981]/30 pl-4">
+          <h2 className="text-4xl font-serif mb-4 text-slate-800 dark:text-white">The Atelier</h2>
+          <p className="text-slate-600 dark:text-gray-400 leading-relaxed border-l-2 border-[#10B981]/30 pl-4">
             Visualize your own luxury concepts. Describe a packaging idea, a uniform detail, or an architectural feature, and let our AI artisan sketch it for you in our signature style.
           </p>
         </div>
@@ -40,7 +40,7 @@ export const DesignAtelier: React.FC = () => {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="E.g. A matte black perfume bottle with gold filigree geometry, sitting on black sand..."
-            className="w-full h-32 bg-[#0d0d0d] border border-white/10 rounded-2xl p-6 text-white focus:outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981]/50 transition-all resize-none placeholder-gray-700"
+            className="w-full h-32 bg-white dark:bg-[#0d0d0d] border border-slate-200 dark:border-white/10 rounded-2xl p-6 text-slate-800 dark:text-white focus:outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981]/50 transition-all resize-none placeholder-slate-400 dark:placeholder-gray-700 shadow-sm"
           />
           
           <button
@@ -48,12 +48,11 @@ export const DesignAtelier: React.FC = () => {
             disabled={isGenerating || !prompt.trim()}
             className={`w-full py-4 rounded-xl font-bold tracking-widest uppercase text-xs flex items-center justify-center gap-3 transition-all ${
               isGenerating || !prompt.trim() 
-                ? 'bg-white/5 text-gray-500 cursor-not-allowed' 
-                : 'hover:opacity-90 active:scale-95'
+                ? 'bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-gray-500 cursor-not-allowed border border-slate-200 dark:border-transparent' 
+                : 'hover:opacity-90 active:scale-95 text-white dark:text-black font-extrabold shadow-md'
             }`}
             style={{ 
               background: isGenerating || !prompt.trim() ? '' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-              color: isGenerating || !prompt.trim() ? '' : '#000'
             }}
           >
             {isGenerating ? (
@@ -75,7 +74,7 @@ export const DesignAtelier: React.FC = () => {
              <button
                 key={i}
                 onClick={() => setPrompt(suggestion)}
-                className="text-left p-4 rounded-xl bg-white/5 border border-white/5 hover:border-[#10B981]/30 hover:bg-white/10 transition-all text-xs text-gray-400 hover:text-[#10B981]"
+                className="text-left p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:border-[#10B981]/30 hover:bg-slate-100 dark:hover:bg-white/10 transition-all text-xs text-slate-500 dark:text-gray-400 hover:text-[#10B981] shadow-xs"
              >
                 "{suggestion}"
              </button>
@@ -84,7 +83,7 @@ export const DesignAtelier: React.FC = () => {
       </div>
 
       {/* Preview Section */}
-      <div className="relative aspect-square rounded-[2rem] bg-[#0d0d0d] border border-white/10 overflow-hidden flex items-center justify-center group">
+      <div className="relative aspect-square rounded-[2rem] bg-slate-50 dark:bg-[#0d0d0d] border border-slate-200 dark:border-white/10 overflow-hidden flex items-center justify-center group shadow-md dark:shadow-none">
          {/* Background Pattern */}
          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
          
@@ -109,12 +108,12 @@ export const DesignAtelier: React.FC = () => {
              </div>
            </div>
          ) : (
-           <div className="text-center p-12 opacity-30">
-             <div className="w-24 h-24 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center mx-auto mb-6">
+           <div className="text-center p-12 opacity-30 select-none">
+             <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-300 dark:border-white/20 flex items-center justify-center mx-auto mb-6 text-slate-600 dark:text-white">
                 <ImageIcon size={32} />
              </div>
-             <p className="text-sm tracking-widest uppercase">Canvas Empty</p>
-             <p className="text-xs mt-2 text-gray-500">Your vision awaits visualization</p>
+             <p className="text-sm tracking-widest uppercase text-slate-800 dark:text-white font-bold">Canvas Empty</p>
+             <p className="text-xs mt-2 text-slate-500 dark:text-gray-450">Your vision awaits visualization</p>
            </div>
          )}
          

@@ -4,10 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hyper Al Masri</title>
+    <script>
+      (function() {
+        const savedTheme = localStorage.getItem('almasri_theme') || 'dark';
+        if (savedTheme === 'dark') {
+          document.documentElement.classList.add('dark');
+          document.addEventListener('DOMContentLoaded', () => {
+            document.body.classList.add('dark');
+          });
+        } else {
+          document.documentElement.classList.remove('dark');
+          document.addEventListener('DOMContentLoaded', () => {
+            document.body.classList.remove('dark');
+          });
+        }
+      })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
+        darkMode: 'class',
         theme: {
           extend: {
             fontFamily: {
@@ -29,6 +46,11 @@
     </script>
     <style>
       body {
+        background-color: #f8fafc;
+        color: #0f172a;
+        transition: background-color 0.3s ease, color 0.3s ease;
+      }
+      body.dark {
         background-color: #080808;
         color: #ffffff;
       }
@@ -37,11 +59,17 @@
         width: 8px;
       }
       ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+      }
+      body.dark ::-webkit-scrollbar-track {
         background: #0f0f0f;
       }
       ::-webkit-scrollbar-thumb {
-        background: #333;
+        background: #cbd5e1;
         border-radius: 4px;
+      }
+      body.dark ::-webkit-scrollbar-thumb {
+        background: #333;
       }
       ::-webkit-scrollbar-thumb:hover {
         background: #10B981;

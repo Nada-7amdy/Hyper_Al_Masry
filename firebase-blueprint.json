@@ -1,0 +1,132 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Commercial product registered in the hypermarket stock database.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the product."
+        },
+        "name": {
+          "type": "string",
+          "description": "Localized product item name."
+        },
+        "price": {
+          "type": "number",
+          "description": "Unit price or per-kg price of the item."
+        },
+        "category": {
+          "type": "string",
+          "description": "Product hierarchy department name."
+        },
+        "stock": {
+          "type": "number",
+          "description": "Current quantity or kilograms available."
+        },
+        "isWeightBased": {
+          "type": "boolean",
+          "description": "Indicates if pricing of the product operates on weighed scale inputs."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the product."
+        },
+        "image": {
+          "type": "string",
+          "description": "URL to a placeholder cover image for the product."
+        },
+        "rating": {
+          "type": "number",
+          "description": "Rating score from five stars."
+        }
+      },
+      "required": ["name", "price", "category", "stock", "isWeightBased"]
+    },
+    "InvoiceItem": {
+      "title": "InvoiceItem",
+      "description": "Sub-element of an invoice transaction denoting a purchased product.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number"
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "weight": {
+          "type": "number"
+        },
+        "isWeightBased": {
+          "type": "boolean"
+        }
+      },
+      "required": ["id", "name", "price", "quantity"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Consolidated record of a POS sale or return transaction.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique transactional database key."
+        },
+        "invoiceNo": {
+          "type": "string",
+          "description": "Audit-compliant serial invoice number."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "ISO timestamp indicating exact check-out time."
+        },
+        "items": {
+          "type": "array",
+          "$ref": "InvoiceItem"
+        },
+        "subtotal": {
+          "type": "number"
+        },
+        "discount": {
+          "type": "number"
+        },
+        "tax": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["cash", "card", "wallet"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["synced", "local_pending", "voided"]
+        },
+        "cashier": {
+          "type": "string",
+          "description": "Name or license index of the clerk on host."
+        }
+      },
+      "required": ["invoiceNo", "timestamp", "items", "subtotal", "discount", "tax", "total", "status", "paymentMethod"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Main catalogue of hypermarket products."
+    },
+    "/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Ledger entries of POS transactions and refunds."
+    }
+  }
+}

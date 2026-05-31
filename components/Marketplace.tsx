@@ -70,25 +70,25 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ cart, addToCart }) => 
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-white/5 pb-8">
+      <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-slate-200 dark:border-white/5 pb-8">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <ShoppingBag size={14} className="text-emerald-400" />
+            <ShoppingBag size={14} className="text-emerald-500 dark:text-emerald-400" />
             <span className={`text-[10px] uppercase tracking-[0.4em] font-bold ${goldText}`}>السوق اليومي</span>
           </div>
-          <h2 className="text-4xl font-serif">تسوق طلبات بيتك</h2>
+          <h2 className="text-4xl font-serif text-slate-800 dark:text-white">تسوق طلبات بيتك</h2>
         </div>
         
         {/* Search Bar */}
         <div className="relative w-full md:w-96 group">
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                <Search size={16} className="text-gray-500 group-focus-within:text-emerald-400 transition-colors" />
+                <Search size={16} className="text-gray-400 dark:text-gray-500 group-focus-within:text-emerald-500 dark:group-focus-within:text-emerald-400 transition-colors" />
             </div>
             <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl py-3 pr-10 pl-4 text-sm focus:outline-none focus:border-emerald-500/50 transition-all text-white placeholder-gray-500 focus:shadow-[0_0_15px_rgba(16,185,129,0.1)] text-right"
+                className="w-full bg-white dark:bg-[#1a1a1a] border border-slate-200 dark:border-white/10 rounded-xl py-3 pr-10 pl-4 text-sm focus:outline-none focus:border-emerald-500/50 transition-all text-slate-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:shadow-[0_0_15px_rgba(16,185,129,0.1)] text-right shadow-sm dark:shadow-none"
                 placeholder="ابحث عن منتج (أرز، سكر، لحوم...)"
                 dir="rtl"
             />
@@ -104,10 +104,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ cart, addToCart }) => 
                 <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
-                    className={`px-6 py-3 rounded-full text-xs font-bold whitespace-nowrap transition-all border shadow-lg ${
+                    className={`px-6 py-3 rounded-full text-xs font-bold whitespace-nowrap transition-all border shadow-md ${
                         isSelected 
-                        ? `${style.bg} ${style.border} ${style.text} ring-1 ring-white/10` 
-                        : 'bg-[#1a1a1a] text-gray-500 border-white/5 hover:border-white/20'
+                        ? `${style.bg} ${style.border} ${style.text} ring-1 ring-slate-200 dark:ring-white/10` 
+                        : 'bg-white dark:bg-[#1a1a1a] text-slate-500 dark:text-slate-400 border-slate-200 dark:border-white/5 hover:border-emerald-500/45 dark:hover:border-white/20'
                     }`}
                 >
                     {cat === 'All' ? 'الكل' : cat}
@@ -121,15 +121,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ cart, addToCart }) => 
         {isLoading ? (
             // Skeletons
             [1,2,3,4].map(i => (
-                <div key={i} className="aspect-[4/5] rounded-[2rem] bg-[#111] animate-pulse border border-white/5"></div>
+                <div key={i} className="aspect-[4/5] rounded-[2rem] bg-slate-100 dark:bg-[#111] animate-pulse border border-slate-200 dark:border-white/5"></div>
             ))
         ) : filteredProducts.length > 0 ? (
             filteredProducts.map(product => {
                 const catStyle = CATEGORY_STYLES[product.category] || CATEGORY_STYLES['All'];
                 return (
-                <div key={product.id} className="group relative bg-[#161616] rounded-[2rem] border border-white/5 overflow-hidden hover:border-emerald-500/30 transition-all duration-300 hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)] flex flex-col">
+                <div key={product.id} className="group relative bg-white dark:bg-[#161616] rounded-[2rem] border border-slate-200 dark:border-white/5 overflow-hidden hover:border-emerald-500/30 transition-all duration-300 shadow-md hover:shadow-xl flex flex-col">
                     {/* Image Area */}
-                    <div className="aspect-[4/3] w-full relative overflow-hidden bg-[#222]">
+                    <div className="aspect-[4/3] w-full relative overflow-hidden bg-slate-100 dark:bg-[#222]">
                         <img 
                             src={product.image} 
                             alt={product.name}
@@ -149,31 +149,31 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ cart, addToCart }) => 
                     {/* Content */}
                     <div className="p-5 flex-1 flex flex-col justify-between">
                         <div>
-                            <h3 className="text-lg font-serif font-bold leading-tight mb-2 text-right text-white">{product.name}</h3>
-                            <p className="text-gray-400 text-xs line-clamp-2 mb-4 text-right leading-relaxed">{product.description}</p>
+                            <h3 className="text-lg font-serif font-bold leading-tight mb-2 text-right text-slate-800 dark:text-white">{product.name}</h3>
+                            <p className="text-slate-500 dark:text-gray-400 text-xs line-clamp-2 mb-4 text-right leading-relaxed">{product.description}</p>
                         </div>
                         
                         <div className="flex items-center justify-between mt-2">
                             <button 
                                 onClick={() => addToCart(product)}
-                                className="px-4 py-2 rounded-xl bg-[#2a2a2a] hover:bg-[#6AA84F] hover:text-white border border-white/5 flex items-center gap-2 transition-all active:scale-95 group/btn"
+                                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-[#2a2a2a] hover:bg-[#6AA84F] hover:text-white border border-slate-200 dark:border-white/5 flex items-center gap-2 transition-all active:scale-95 group/btn"
                             >
                                 <Plus size={16} className="text-[#6AA84F] group-hover/btn:text-white transition-colors" />
-                                <span className="text-xs font-bold text-gray-300 group-hover/btn:text-white">أضف للسلة</span>
+                                <span className="text-xs font-bold text-slate-600 dark:text-gray-300 group-hover/btn:text-white">أضف للسلة</span>
                             </button>
 
                             <div className="text-right">
-                                <span className="text-lg font-bold text-emerald-400">
+                                <span className="text-lg font-bold text-emerald-500 dark:text-emerald-400">
                                     {product.price}
                                 </span>
-                                <span className="text-[10px] text-gray-500 mr-1">ج.م</span>
+                                <span className="text-[10px] text-slate-400 dark:text-gray-500 mr-1">ج.م</span>
                             </div>
                         </div>
                     </div>
                 </div>
             )})
         ) : (
-            <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-500">
+            <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-400 dark:text-gray-500">
                 <Filter size={48} className="mb-4 opacity-20" />
                 <p>عفواً، المخزن فاضي أو مفيش منتج بالاسم ده.</p>
             </div>
