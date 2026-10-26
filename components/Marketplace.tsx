@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, ShoppingBag, Star, Filter } from 'lucide-react';
 import { Product, CartItem } from '../types';
+import { PRODUCTS } from '../data';
 import { db } from '../services/firebase';
 import { collection, getDocs } from 'firebase/firestore';
+import { Button, Card, Chip, Input, ProductCard, CategoryCard, Loader, EmptyState, formatPrice } from './DesignSystem';
 
 interface MarketplaceProps {
   cart: CartItem[];
   addToCart: (product: Product) => void;
+  favorites: string[];
+  toggleFavorite: (productId: string) => void;
 }
 
 // Configuration for Category Colors
@@ -18,7 +22,12 @@ const CATEGORY_STYLES: Record<string, { bg: string, text: string, border: string
   'All': { bg: 'bg-white/5', text: 'text-gray-400', border: 'border-white/10', iconColor: '#999' }
 };
 
-export const Marketplace: React.FC<MarketplaceProps> = ({ cart, addToCart }) => {
+export const Marketplace: React.FC<MarketplaceProps> = ({ 
+  cart, 
+  addToCart, 
+  favorites, 
+  toggleFavorite 
+}) => {
   const [query, setQuery] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,19 +39,26 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ cart, addToCart }) => 
     const fetch = async () => {
       setIsLoading(true);
       try {
-        // 1. Fetch from Firestore
-        const querySnapshot = await getDocs(collection(db, "products"));
-        
-        // 2. Map data
-        let realProducts = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          // Default fallbacks
-          rating: doc.data().rating || 4.8, 
-          description: doc.data().description || "منتج طازج وعالي الجودة من هايبر المصري",
-          image: doc.data().image || "https://placehold.co/400x300/1a1a1a/gold?text=Product",
-          category: doc.data().category || "عام"
-        })) as Product[];
+        let realProducts: Product[] = [];
+        try {
+          // 1. Attempt to fetch from Firestore
+          const querySnapshot = await getDocs(collection(db, "products"));
+          realProducts = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            rating: doc.data().rating || 4.8, 
+            description: doc.data().description || "منتج طازج وعالي الجودة من هايبر المصري",
+            image: doc.data().image || "https://placehold.co/400x300/1a1a1a/gold?text=Product",
+            category: doc.data().category || "عام"
+          })) as Product[];
+        } catch (dbError) {
+          console.warn("Firestore unreachable, using verified catalog fallback:", dbError);
+        }
+
+        // 2. Fallback to verified catalog if Firestore is empty or offline
+        if (realProducts.length === 0) {
+          realProducts = [...PRODUCTS];
+        }
 
         // 3. Client-side Filter
         if (query) {
@@ -53,7 +69,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ cart, addToCart }) => 
 
         setProducts(realProducts);
       } catch (error) {
-        console.error("Error fetching products:", error);
+        console.error("Error in marketplace catalog:", error);
+        setProducts([...PRODUCTS]);
       }
       setIsLoading(false);
     };
@@ -70,13 +87,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ cart, addToCart }) => 
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-slate-200 dark:border-white/5 pb-8">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
+      <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-slate-200 dark:border-white/5 pb-8 flex-col-reverse md:flex-row">
+        <div className="space-y-2 text-right w-full md:w-auto">
+          <div className="flex items-center gap-2 justify-end">
             <ShoppingBag size={14} className="text-emerald-500 dark:text-emerald-400" />
-            <span className={`text-[10px] uppercase tracking-[0.4em] font-bold ${goldText}`}>السوق اليومي</span>
+            <span className={`text-[10px] uppercase tracking-[0.4em] font-bold ${goldText}`}>عروض تسوق متميزة</span>
           </div>
-          <h2 className="text-4xl font-serif text-slate-800 dark:text-white">تسوق طلبات بيتك</h2>
+          <h2 className="text-3xl font-serif text-slate-800 dark:text-white font-bold">🥬 منتجات طازجة وعروض مذهلة اليوم</h2>
         </div>
         
         {/* Search Bar */}
@@ -124,54 +141,16 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ cart, addToCart }) => 
                 <div key={i} className="aspect-[4/5] rounded-[2rem] bg-slate-100 dark:bg-[#111] animate-pulse border border-slate-200 dark:border-white/5"></div>
             ))
         ) : filteredProducts.length > 0 ? (
-            filteredProducts.map(product => {
-                const catStyle = CATEGORY_STYLES[product.category] || CATEGORY_STYLES['All'];
-                return (
-                <div key={product.id} className="group relative bg-white dark:bg-[#161616] rounded-[2rem] border border-slate-200 dark:border-white/5 overflow-hidden hover:border-emerald-500/30 transition-all duration-300 shadow-md hover:shadow-xl flex flex-col">
-                    {/* Image Area */}
-                    <div className="aspect-[4/3] w-full relative overflow-hidden bg-slate-100 dark:bg-[#222]">
-                        <img 
-                            src={product.image} 
-                            alt={product.name}
-                            className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 opacity-90 group-hover:opacity-100"
-                        />
-                        {/* Category Badge */}
-                        <div className={`absolute top-3 right-3 z-20 backdrop-blur-md px-3 py-1 rounded-full border flex items-center gap-1 ${catStyle.bg} ${catStyle.border}`}>
-                            <span className={`text-[10px] font-bold ${catStyle.text}`}>{product.category}</span>
-                        </div>
-                        {/* Rating */}
-                        <div className="absolute bottom-3 left-3 z-20 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg flex items-center gap-1">
-                            <Star size={10} className="text-emerald-400 fill-emerald-400" />
-                            <span className="text-[10px] font-bold text-white">{product.rating}</span>
-                        </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-5 flex-1 flex flex-col justify-between">
-                        <div>
-                            <h3 className="text-lg font-serif font-bold leading-tight mb-2 text-right text-slate-800 dark:text-white">{product.name}</h3>
-                            <p className="text-slate-500 dark:text-gray-400 text-xs line-clamp-2 mb-4 text-right leading-relaxed">{product.description}</p>
-                        </div>
-                        
-                        <div className="flex items-center justify-between mt-2">
-                            <button 
-                                onClick={() => addToCart(product)}
-                                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-[#2a2a2a] hover:bg-[#6AA84F] hover:text-white border border-slate-200 dark:border-white/5 flex items-center gap-2 transition-all active:scale-95 group/btn"
-                            >
-                                <Plus size={16} className="text-[#6AA84F] group-hover/btn:text-white transition-colors" />
-                                <span className="text-xs font-bold text-slate-600 dark:text-gray-300 group-hover/btn:text-white">أضف للسلة</span>
-                            </button>
-
-                            <div className="text-right">
-                                <span className="text-lg font-bold text-emerald-500 dark:text-emerald-400">
-                                    {product.price}
-                                </span>
-                                <span className="text-[10px] text-slate-400 dark:text-gray-500 mr-1">ج.م</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )})
+            filteredProducts.map(product => (
+                <ProductCard 
+                    key={product.id}
+                    product={product}
+                    cart={cart}
+                    addToCart={addToCart}
+                    favorites={favorites}
+                    toggleFavorite={toggleFavorite}
+                />
+            ))
         ) : (
             <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-400 dark:text-gray-500">
                 <Filter size={48} className="mb-4 opacity-20" />

@@ -27,10 +27,23 @@ export interface Product {
   description: string;
   rating: number;
   stock: number;
+  oldPrice?: number;
+  discount?: string;
+  reviews?: number;
+  stockStatus?: 'high' | 'low' | 'out';
+  deliveryEstimate?: string;
+  badge?: string;
+  isDeal?: boolean;
+  isBestSeller?: boolean;
+  isRecommended?: boolean;
+  isFresh?: boolean;
+  isSeasonal?: boolean;
+  isWeightBased?: boolean;
 }
 
 export interface CartItem extends Product {
   quantity: number;
+  selectedWeight?: number;
 }
 
 export interface OrderStatus {

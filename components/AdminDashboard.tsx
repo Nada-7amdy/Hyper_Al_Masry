@@ -301,9 +301,48 @@ export const AdminDashboard = () => {
   }, [invoices]);
 
   // Alert log handler helper
+  const cleanEmojiMessage = (msg: string): string => {
+    const replacements: { [key: string]: string } = {
+      "❌": "[خطأ]",
+      "🔊": "[صوت]",
+      "⚠️": "[تنبيه]",
+      "🛒": "[سلة]",
+      "⚖️": "[ميزان]",
+      "🗑️": "[حذف]",
+      "💾": "[حفظ]",
+      "✅": "[نجاح]",
+      "🌐": "[أونلاين]",
+      "🔌": "[أوفلاين]",
+      "🔄": "[مزامنة]",
+      "📎": "[مرفق]",
+      "💫": "[تزامن]",
+      "🌟": "[مكتمل]",
+      "🔒": "[قفل]",
+      "📦": "[مخزون]",
+      "✨": "[جديد]",
+      "🔏": "[محمي]",
+      "💵": "[نقدي]",
+      "💳": "[فيزا]",
+      "📱": "[محفظة]",
+      "🧹": "[تصفير]",
+      "⚙️": "[ضبط]",
+      "🖨️": "[طابعة]",
+      "🗝️": "[مفتاح]",
+      "🟢": "[نشط]",
+      "🚫": "[ملغي]",
+      "★": "[مميز]"
+    };
+    let cleaned = msg;
+    Object.entries(replacements).forEach(([emoji, text]) => {
+      cleaned = cleaned.replaceAll(emoji, text);
+    });
+    return cleaned.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
+  };
+
   const addHardwareLog = (message: string) => {
     const time = new Date().toLocaleTimeString('ar-EG');
-    setHardwareLogs(prev => [`[${time}] ${message}`, ...prev.slice(0, 50)]);
+    const cleanedMessage = cleanEmojiMessage(message);
+    setHardwareLogs(prev => [`[${time}] ${cleanedMessage}`, ...prev.slice(0, 50)]);
   };
 
   // --- POS Cashier Actions ---
@@ -418,7 +457,8 @@ export const AdminDashboard = () => {
   };
 
   const triggerNotification = (text: string) => {
-    setVoiceNotification(text);
+    const cleanedText = cleanEmojiMessage(text);
+    setVoiceNotification(cleanedText);
     setTimeout(() => {
       setVoiceNotification("");
     }, 4500);
@@ -1017,33 +1057,38 @@ export const AdminDashboard = () => {
       <div className="flex border-b border-white/5 overflow-x-auto pb-1 scrollbar-hide">
         <button
           onClick={() => setActiveSubTab('pos')}
-          className={`pb-4 px-6 font-bold text-xs whitespace-nowrap transition-all border-b-2 ${activeSubTab === 'pos' ? 'border-[#10B981] text-[#10B981]' : 'border-transparent text-gray-500 hover:text-white'}`}
+          className={`pb-4 px-6 font-bold text-xs whitespace-nowrap transition-all border-b-2 flex items-center gap-2 ${activeSubTab === 'pos' ? 'border-[#10B981] text-[#10B981]' : 'border-transparent text-gray-500 hover:text-white'}`}
         >
-          🛒 شاشة البيع والمبيعات (CASHIER POS)
+          <ShoppingCart size={14} />
+          <span>شاشة البيع والمبيعات (CASHIER POS)</span>
         </button>
         <button
           onClick={() => setActiveSubTab('invoices')}
-          className={`pb-4 px-6 font-bold text-xs whitespace-nowrap transition-all border-b-2 ${activeSubTab === 'invoices' ? 'border-[#10B981] text-[#10B981]' : 'border-transparent text-gray-500 hover:text-white'}`}
+          className={`pb-4 px-6 font-bold text-xs whitespace-nowrap transition-all border-b-2 flex items-center gap-2 ${activeSubTab === 'invoices' ? 'border-[#10B981] text-[#10B981]' : 'border-transparent text-gray-500 hover:text-white'}`}
         >
-          📂 مراجعة الفواتير والمرتجعات (INVOICES)
+          <Database size={14} />
+          <span>مراجعة الفواتير والمرتجعات (INVOICES)</span>
         </button>
         <button
           onClick={() => setActiveSubTab('inventory')}
-          className={`pb-4 px-6 font-bold text-xs whitespace-nowrap transition-all border-b-2 ${activeSubTab === 'inventory' ? 'border-[#10B981] text-[#10B981]' : 'border-transparent text-gray-500 hover:text-white'}`}
+          className={`pb-4 px-6 font-bold text-xs whitespace-nowrap transition-all border-b-2 flex items-center gap-2 ${activeSubTab === 'inventory' ? 'border-[#10B981] text-[#10B981]' : 'border-transparent text-gray-500 hover:text-white'}`}
         >
-          📦 جرد المخزون والتحذيرات (STOCK)
+          <Layers size={14} />
+          <span>جرد المخزون والتحذيرات (STOCK)</span>
         </button>
         <button
           onClick={() => setActiveSubTab('bi')}
-          className={`pb-4 px-6 font-bold text-xs whitespace-nowrap transition-all border-b-2 ${activeSubTab === 'bi' ? 'border-[#10B981] text-[#10B981]' : 'border-transparent text-gray-500 hover:text-white'}`}
+          className={`pb-4 px-6 font-bold text-xs whitespace-nowrap transition-all border-b-2 flex items-center gap-2 ${activeSubTab === 'bi' ? 'border-[#10B981] text-[#10B981]' : 'border-transparent text-gray-500 hover:text-white'}`}
         >
-          📊 تقارير الأداء المالي (EXECUTIVE BI)
+          <BarChart2 size={14} />
+          <span>تقارير الأداء المالي (EXECUTIVE BI)</span>
         </button>
         <button
           onClick={() => setActiveSubTab('peripherals')}
-          className={`pb-4 px-6 font-bold text-xs whitespace-nowrap transition-all border-b-2 ${activeSubTab === 'peripherals' ? 'border-[#10B981] text-[#10B981]' : 'border-transparent text-gray-500 hover:text-white'}`}
+          className={`pb-4 px-6 font-bold text-xs whitespace-nowrap transition-all border-b-2 flex items-center gap-2 ${activeSubTab === 'peripherals' ? 'border-[#10B981] text-[#10B981]' : 'border-transparent text-gray-500 hover:text-white'}`}
         >
-          🔌 الأجهزة الطرفية والمحاكيات
+          <Cpu size={14} />
+          <span>الأجهزة الطرفية والمحاكيات</span>
         </button>
       </div>
 
@@ -1398,8 +1443,18 @@ export const AdminDashboard = () => {
             {/* Simple feedback of roles */}
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-400">الصلاحية المفعلة:</span>
-              <span className={`text-xs px-3 py-1 rounded-full font-bold ${currentRole === 'cashier' ? 'bg-red-950/20 text-red-400 border border-red-900/30' : 'bg-[#6AA84F]/10 text-[#6AA84F] border border-[#6AA84F]/30'}`}>
-                {currentRole === 'cashier' ? '🔍 فحص فقط (كاشير)' : '🗝️ تفعيل الإجراءات المتقدمة (المدير)'}
+              <span className={`text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1 ${currentRole === 'cashier' ? 'bg-red-950/20 text-red-400 border border-red-900/30' : 'bg-[#6AA84F]/10 text-[#6AA84F] border border-[#6AA84F]/30'}`}>
+                {currentRole === 'cashier' ? (
+                  <>
+                    <Search size={12} />
+                    <span>فحص فقط (كاشير)</span>
+                  </>
+                ) : (
+                  <>
+                    <Key size={12} />
+                    <span>تفعيل الإجراءات المتقدمة (المدير)</span>
+                  </>
+                )}
               </span>
             </div>
           </div>
@@ -1437,7 +1492,24 @@ export const AdminDashboard = () => {
                         <td className="p-4 text-gray-400">{date_formatted}</td>
                         <td className="p-4 max-w-xs truncate" title={itemsText}>{itemsText}</td>
                         <td className="p-4 font-semibold">
-                          {inv.paymentMethod === 'cash' ? '💵 كاش نقدي' : inv.paymentMethod === 'card' ? '💳 فيزا بنكية' : '📱 المحفظة الذكية'}
+                          <span className="flex items-center gap-1.5 justify-end">
+                            {inv.paymentMethod === 'cash' ? (
+                              <>
+                                <DollarSign size={14} className="text-emerald-400" />
+                                <span>كاش نقدي</span>
+                              </>
+                            ) : inv.paymentMethod === 'card' ? (
+                              <>
+                                <CreditCard size={14} className="text-blue-400" />
+                                <span>فيزا بنكية</span>
+                              </>
+                            ) : (
+                              <>
+                                <Smartphone size={14} className="text-purple-400" />
+                                <span>المحفظة الذكية</span>
+                              </>
+                            )}
+                          </span>
                         </td>
                         <td className="p-4 font-bold text-white font-mono">{formatEGP(inv.total)} ج.م</td>
                         <td className="p-4">
@@ -1449,9 +1521,15 @@ export const AdminDashboard = () => {
                         </td>
                         <td className="p-4 font-bold">
                           {isVoided ? (
-                            <span className="text-red-500">🚫 ملغية / مرتجع</span>
+                            <span className="text-red-500 flex items-center gap-1 justify-end">
+                              <Ban size={14} />
+                              <span>ملغية / مرتجع</span>
+                            </span>
                           ) : (
-                            <span className="text-green-500">✅ مدفوعة بالكامل</span>
+                            <span className="text-green-500 flex items-center gap-1 justify-end">
+                              <Check size={14} />
+                              <span>مدفوعة بالكامل</span>
+                            </span>
                           )}
                         </td>
                         <td className="p-4 text-center">
@@ -1619,8 +1697,9 @@ export const AdminDashboard = () => {
                 </div>
                 
                 {currentRole !== 'executive' ? (
-                  <div className="text-center py-6 text-gray-500 font-semibold text-xs bg-black/30 rounded-xl border border-white/5">
-                    🔏 إضافة أصناف جديدة مغلقة حالياً. يرجى الترفيع لـ (الإدارة العليا) من مفتاح صلاحيات POS لتشغيل هذا النموذج المتقدم.
+                  <div className="text-center py-6 text-gray-500 font-semibold text-xs bg-black/30 rounded-xl border border-white/5 flex flex-col items-center justify-center gap-2">
+                    <Shield size={20} className="text-red-500" />
+                    <span>إضافة أصناف جديدة مغلقة حالياً. يرجى الترفيع لـ (الإدارة العليا) من مفتاح صلاحيات POS لتشغيل هذا النموذج المتقدم.</span>
                   </div>
                 ) : (
                   <form onSubmit={handleAddProductPOS} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
@@ -1798,17 +1877,26 @@ export const AdminDashboard = () => {
                 <div className="space-y-3 w-full md:w-auto">
                   <div className="flex items-center gap-3 justify-end text-xs">
                     <span className="font-bold text-white font-mono">{kpi.cashPercent}%</span>
-                    <span className="text-gray-400">💵 الدفع النقدي (كاش)</span>
+                    <span className="text-gray-400 flex items-center gap-1">
+                      <DollarSign size={12} className="text-emerald-400" />
+                      <span>الدفع النقدي (كاش)</span>
+                    </span>
                     <div className="w-3 h-3 rounded-full bg-[#10B981]" />
                   </div>
                   <div className="flex items-center gap-3 justify-end text-xs">
                     <span className="font-bold text-white font-mono">{kpi.cardPercent}%</span>
-                    <span className="text-gray-400">💳 البطاقات البنكية (فيزا)</span>
+                    <span className="text-gray-400 flex items-center gap-1">
+                      <CreditCard size={12} className="text-blue-400" />
+                      <span>البطاقات البنكية (فيزا)</span>
+                    </span>
                     <div className="w-3 h-3 rounded-full bg-[#5DADE2]" />
                   </div>
                   <div className="flex items-center gap-3 justify-end text-xs">
                     <span className="font-bold text-white font-mono">{kpi.walletPercent}%</span>
-                    <span className="text-gray-400">📱 المحافظ وفودافون كاش</span>
+                    <span className="text-gray-400 flex items-center gap-1">
+                      <Smartphone size={12} className="text-purple-400" />
+                      <span>المحافظ وفودافون كاش</span>
+                    </span>
                     <div className="w-3 h-3 rounded-full bg-[#6AA84F]" />
                   </div>
                 </div>
@@ -2036,8 +2124,9 @@ export const AdminDashboard = () => {
 
             {/* Simulated RJ11 drawer alert top wrapper */}
             {drawerOpenLog && (
-              <div className="mb-4 bg-green-50 text-green-800 text-center font-bold p-2.5 rounded-xl border border-green-200 animate-pulse font-sans">
-                🔊 طررق! تم فتح درج النقدية تلقائياً 💵
+              <div className="mb-4 bg-green-50 text-green-800 text-center font-bold p-2.5 rounded-xl border border-green-200 animate-pulse font-sans flex items-center justify-center gap-1.5">
+                <Zap size={14} className="text-green-600" />
+                <span>طررق! تم فتح درج النقدية تلقائياً (سداد نقدية)</span>
               </div>
             )}
 
@@ -2046,7 +2135,10 @@ export const AdminDashboard = () => {
               
               {/* Receipt Header logo */}
               <div className="text-center space-y-1 pb-4 border-b border-dashed border-gray-300">
-                <h3 className="text-sm font-bold font-serif uppercase tracking-wider">★ هايبر المصري الفاخر ★</h3>
+                <h3 className="text-sm font-bold font-serif uppercase tracking-wider flex items-center justify-center gap-1">
+                  <Award size={14} className="text-emerald-600" />
+                  <span>هايبر المصري الفاخر</span>
+                </h3>
                 <p className="text-[10px] text-gray-500 font-sans">تذكرة شراء غير منتهية لأسلوب الحياة الكلاسيكي</p>
                 <div className="text-[9px] text-gray-400">فرع القاهرة الجديدة - هاتف: 19905</div>
               </div>
@@ -2065,9 +2157,24 @@ export const AdminDashboard = () => {
                   <span>{showInvoiceModal.cashier}</span>
                   <span className="font-bold">البائع المسؤول:</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span>
-                    {showInvoiceModal.paymentMethod === 'cash' ? '💵 كاش نقدي' : showInvoiceModal.paymentMethod === 'card' ? '💳 بطاقة فيزا' : '📱 محفظة هاتفية'}
+                    {showInvoiceModal.paymentMethod === 'cash' ? (
+                      <span className="flex items-center gap-1 justify-end font-sans">
+                        <DollarSign size={11} className="text-emerald-600 inline" />
+                        <span>كاش نقدي</span>
+                      </span>
+                    ) : showInvoiceModal.paymentMethod === 'card' ? (
+                      <span className="flex items-center gap-1 justify-end font-sans">
+                        <CreditCard size={11} className="text-blue-600 inline" />
+                        <span>بطاقة فيزا</span>
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 justify-end font-sans">
+                        <Smartphone size={11} className="text-purple-600 inline" />
+                        <span>محفظة هاتفية</span>
+                      </span>
+                    )}
                   </span>
                   <span className="font-bold">طريقة الدفع:</span>
                 </div>

@@ -5,7 +5,7 @@ import { ChatMessage } from '../types';
 
 export const Concierge: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'model', text: 'Welcome to the Hyper Al Masri Atelier. How may I assist you in your pursuit of excellence today?' }
+    { role: 'model', text: 'مرحباً بكم في هايبر المصري! كيف يمكنني مساعدتكم اليوم في العثور على أحدث عروضنا أو المنتجات الطازجة أو تتبع طلباتكم؟' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -54,8 +54,8 @@ export const Concierge: React.FC = () => {
                 </div>
              </div>
              <div>
-                <h3 className={`font-serif text-xl font-bold ${goldText}`}>The Royal Concierge</h3>
-                <p className="text-[10px] uppercase tracking-widest text-slate-450 dark:text-gray-500">Always at your service</p>
+                <h3 className={`font-serif text-xl font-bold ${goldText}`}>المساعد الرقمي الذكي</h3>
+                <p className="text-[10px] uppercase tracking-widest text-slate-450 dark:text-gray-500">مستشارك الشخصي للتسوق العائلي</p>
              </div>
           </div>
           <div className="flex gap-2">
@@ -107,7 +107,7 @@ export const Concierge: React.FC = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyPress}
-                placeholder="Ask about our heritage, services, or collections..."
+                placeholder="اسأل عن المنتجات الطازجة، العروض الحالية، أو تتبع طلبك... | Ask about fresh items, offers, or order tracking..."
                 className="w-full bg-white dark:bg-[#080808] border border-slate-200 dark:border-white/10 rounded-xl py-4 pl-6 pr-14 text-sm focus:outline-none focus:border-[#10B981]/50 transition-colors text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 block shadow-sm"
              />
              <button 
