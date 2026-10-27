@@ -1,8 +1,8 @@
 # Hyper Al Masri (هايبر المصري) — Senior Engineer Project Handover & Continuation Brief
 
-**Document Version:** 1.0.0  
+**Document Version:** 1.1.0  
 **Target Audience:** Incoming Senior Software Engineer, Technical Project Manager, Codebase Auditor  
-**Last Verified Build Status:** PASSING (`npm run build` and `npm run lint` / `tsc --noEmit` succeed with 0 errors)  
+**Last Verified Build Status:** PASSING (`npm run build`, `npm run lint` / `tsc --noEmit` succeed with 0 errors, 40 unit tests passing across 6 test suites)  
 **Date:** October 2026  
 
 ---
@@ -81,6 +81,22 @@ Hyper Al Masri addresses this by providing an Egyptian luxury aesthetic (Cairo t
 5. **Issue 5: Linting Script Verification**
    - *Action:* Added `"lint": "tsc --noEmit"` to `package.json` and added devDependencies `@types/react` and `@types/react-dom` to ensure strict build pipelines pass without warnings.
 
+### Phase 4: Product Logic & Intelligent Egyptian Retail Implementation (Issues 1–7)
+1. **Issue 1: Feedback Gating (Unlocks ONLY on `DELIVERED`):**
+   - Implemented strict gating in `components/TrackingMap.tsx`. Feedback form is hidden and replaced with an elegant status waiting notice until order reaches `DELIVERED`. Deduplication prevents multiple reviews for the same order (`hasFeedback`).
+2. **Issue 2: Realistic Egyptian Checkout Flow (`components/CheckoutDrawer.tsx`):**
+   - Built an accessible drawer collecting full customer name, verified 11-digit Egyptian mobile (`^01[0125][0-9]{8}$`), Cairo/Giza luxury districts, detailed building/floor/apartment numbers, and real payment methods (`CASH_ON_DELIVERY` and `CARD_ON_DELIVERY` POS). Cart is safely preserved until confirmed persistence.
+3. **Issue 3: Complete Arabic Status Localization:**
+   - Centralized all order lifecycle milestones into `ORDER_STATUS_LABELS` in `types.ts`, replacing all English tracking phrases (`"Processing Order"`, `"Quality Check Passed"`, `"Driver Assigned"`) with authentic, customer-centric Egyptian Arabic strings.
+4. **Issue 4: Navigation Reorganization:**
+   - Removed portfolio/atelier tabs (`PACKAGING`, `UNIFORM`) from primary commerce navigation while preserving them under the user profile brand philosophy menu, keeping the bottom dock focused exclusively on consumer shopping: الرئيسية, السوق, السلة, تتبع, مساعدك.
+5. **Issue 5: Neutral Customer Identity & Dynamic Profile Hydration:**
+   - Replaced hardcoded personal identity ("ندى المصري", fake gold membership, and email) with a neutral guest state ("أهلاً بك في هايبر المصري", "حساب زائر كريم") and dynamic hydration from `localStorage.getItem('almasri_customer_profile')`.
+6. **Issue 6: AI Concierge Recipe-to-Cart Integration:**
+   - Structured culinary suggestions into `StructuredRecipe` and `RecipeIngredient`, linking directly to verified catalog products (`PRODUCTS`). Rendered rich interactive recipe cards in `Concierge.tsx` with a single-click `[ 🛒 أضف مقادير الوصفة كاملة إلى السلة ]` button honoring weight-based and piece-based item mechanics.
+7. **Issue 7: Persistent and Honest Order Tracking:**
+   - Transparently badged demo tracking simulation (`isSimulatedDemo: true`). Persisted order status, timestamp, and active stage across page reloads in `localStorage` and Firestore, preventing unwanted timeline resets.
+
 ---
 
 ## Section C: Feature-by-Feature Implementation Status Table
@@ -91,14 +107,15 @@ Hyper Al Masri addresses this by providing an Egyptian luxury aesthetic (Cairo t
 | **Home Redesign / Exterior** (`HomeRedesign.tsx`) | `COMPLETED` | Hero banner carousel, quick category circles, flash deals timer, best sellers, HTML5 GPS Geolocation + Cairo/Giza luxury districts picker. | None. Fully verified with localStorage hydration. |
 | **Category Waitlist & Voting** (`CategoryPage.tsx`) | `COMPLETED` | Dynamic category tabs, "Coming Soon" sections, interactive voting buttons and VIP email notifications connected to Firestore `categoryVotes` and `categorySubscriptions` with localStorage fallback. | None. Production-grade security rules enforced. |
 | **Marketplace Catalog** (`Marketplace.tsx`) | `COMPLETED` | Category pills, live search bar, price range filter, cart flyout drawer with quantity/weight incrementers (0.25 kg steps). | None. Weight multipliers verified. |
-| **Order Tracking & Radar** (`TrackingMap.tsx`) | `COMPLETED` | Animated radar scanner, order status progress bar (4 steps), courier Mohamed Ali contact card, dynamic `ActiveOrder` prop hydration, dual 5-star ratings for Delivery & Freshness, quick tags, comments, and Firestore `orderFeedback` sync with safe fallback. | None. Fully verified in unit test suite. |
+| **Order Tracking & Radar** (`TrackingMap.tsx`) | `COMPLETED` | Fully Arabic-localized delivery radar, courier tracking, persistent order lifecycle steps, honest interactive simulation demo badge, and gated post-delivery feedback unlocking strictly upon `DELIVERED`. | None. Fully verified with unit tests. |
+| **Realistic Egyptian Checkout** (`CheckoutDrawer.tsx`) | `COMPLETED` | Drawer validating full name, 11-digit Egyptian mobile regex (`^01[0125][0-9]{8}$`), Cairo/Giza luxury districts, building/floor/apt details, Cash/Card POS on delivery, and safe cart preservation. | None. Production-ready. |
 | **Admin Inventory Portal** (`AdminDashboard.tsx`) | `COMPLETED` | Stock quantity counters, low-stock alerts, weight-based inventory toggle, product update modals. | Optional future analytics dashboards. |
-| **AI Culinary Concierge** (`Concierge.tsx` & `services/gemini.ts`) | `COMPLETED` | Natural language chat drawer, recipe ingredient suggestions, automatic "Add Recipe Ingredients to Cart" action, with comprehensive offline Egyptian culinary fallback engine (`generateCulinaryFallback`). | None. Robust fallback engine tested. |
+| **AI Culinary Concierge** (`Concierge.tsx` & `services/gemini.ts`) | `COMPLETED` | Natural language chat drawer, recipe ingredient suggestions, interactive recipe card with 1-click "Add Recipe Ingredients to Cart" action, and offline Egyptian culinary fallback engine (`generateCulinaryFallback`). | None. Robust fallback engine tested. |
 | **Supermarket Services** (`SupermarketServices.tsx`) | `COMPLETED` | Custom butcher cutting requests, specialty bakery orders, organic certification viewer. | None. Fully functional. |
-| **Packaging & Uniform Showcases** | `COMPLETED` | High-fidelity responsive image grids and brand philosophy storytelling in `App.tsx`. | None. Fully functional. |
+| **Packaging & Uniform Showcases** | `COMPLETED` | Responsive image grids and brand philosophy storytelling preserved in `App.tsx` and accessible via brand profile menu. | None. Fully functional. |
 | **Theme System (Dark/Light)** | `COMPLETED` | `localStorage` persistence under `'almasri_theme'`, toggles `dark` class on both `<html>` and `<body>` with high contrast Emerald/Mint accents. | None. All WCAG AA contrast standards satisfied. |
 | **Firebase Integration & Security Rules** (`firebase.ts`, `firestore.rules`) | `COMPLETED` | Production-hardened security rules for `/products`, `/invoices`, `/orders`, `/orderFeedback`, `/categoryVotes`, and `/categorySubscriptions`. Safe offline fallbacks across all mutations. | None. Validated by firestore-rules-author. |
-| **Automated Testing Suite** (`tests/*.test.ts`) | `COMPLETED` | 4 comprehensive Vitest suites (`cart.test.ts`, `catalog.test.ts`, `concierge.test.ts`, `feedback.test.ts`) covering 21 assertions with 100% pass rate. Wired to CI/CD pipeline. | None. Executed on every push. |
+| **Automated Testing Suite** (`tests/*.test.ts`) | `COMPLETED` | 6 comprehensive Vitest suites (`cart.test.ts`, `catalog.test.ts`, `concierge.test.ts`, `feedback.test.ts`, `checkout.test.ts`, `logic.test.ts`) covering 40 assertions with 100% pass rate. Wired to CI/CD pipeline. | None. Executed on every push. |
 | **Custom Domain & CI/CD** (`hyperalmasri.app`, `deploy.yml`) | `COMPLETED` | Custom domain `hyperalmasri.app` live with GitHub Pages SSL certificate, DNS records configured on Name.com, automated CI/CD workflow testing and deploying on push. | None. Live and monitored. |
 
 ---
@@ -122,7 +139,7 @@ Hyper Al Masri addresses this by providing an Egyptian luxury aesthetic (Cairo t
 ├── index.html                   # HTML entry point, Tailwind script, Google Fonts, theme init script
 ├── index.tsx                    # React 19 createRoot entry point with GlobalErrorBoundary
 ├── types.ts                     # Strict TypeScript interfaces (Product, CartItem, Order, Category, etc.)
-├── data.ts                      # Canonical mock product catalog, categories, and initial state
+├── data.ts                      # Canonical mock product catalog, categories, popular recipes, initial state
 ├── metadata.json                # AI Studio applet metadata, name, description, capabilities
 ├── package.json                 # Dependency manifest and npm scripts (dev, build, preview, lint)
 ├── tsconfig.json                # TypeScript compiler configuration (ESNext, React-JSX, Bundler)
@@ -132,13 +149,21 @@ Hyper Al Masri addresses this by providing an Egyptian luxury aesthetic (Cairo t
 ├── components/
 │   ├── AdminDashboard.tsx       # Stock and inventory management portal
 │   ├── CategoryPage.tsx         # Category deep-dive view with voting & coming-soon queues
-│   ├── Concierge.tsx            # AI recipe and culinary assistant chat drawer
+│   ├── CheckoutDrawer.tsx       # Realistic Egyptian checkout drawer (phone regex, districts, cash/card)
+│   ├── Concierge.tsx            # AI recipe and culinary assistant chat drawer with recipe-to-cart card
 │   ├── DesignSystem.tsx         # Unified UI kit: Button, Badge, Card, ProductCard, CategoryCard, Drawer, etc.
 │   ├── GlobalErrorBoundary.tsx  # Top-level React error boundary catching render crashes with friendly recovery
 │   ├── HomeRedesign.tsx         # Flagship homepage: Hero carousel, flash deals, categories, addresses
 │   ├── Marketplace.tsx          # Full grocery catalog with faceted filters, search, and cart drawer
 │   ├── SupermarketServices.tsx  # In-store gourmet service request forms (Butcher, Bakery, Sommelier)
-│   └── TrackingMap.tsx          # Live delivery radar, courier tracking, and order status pipeline
+│   └── TrackingMap.tsx          # Arabic delivery radar, courier tracking, persistent simulation & gated feedback
+├── tests/
+│   ├── cart.test.ts             # Cart quantity, pricing, and weight calculations
+│   ├── catalog.test.ts          # Catalog products, categories, and deal flags
+│   ├── checkout.test.ts         # Egyptian phone validation, required address fields, payment methods
+│   ├── concierge.test.ts        # Culinary fallback queries and AI prompt safety
+│   ├── feedback.test.ts         # Post-purchase feedback schema and validation
+│   └── logic.test.ts            # Feedback gating, Arabic localization, recipe mapping, persistent tracking
 ├── services/
 │   ├── firebase.ts              # Firebase initialization and Firestore service handles
 │   ├── gemini.ts                # Google Gen AI integration with prompt engineering for supermarket concierge

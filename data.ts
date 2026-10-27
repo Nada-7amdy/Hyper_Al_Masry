@@ -1,5 +1,5 @@
-import { Product } from "./types";
-export type { Product };
+import { Product, StructuredRecipe } from "./types";
+export type { Product, StructuredRecipe };
 
 export interface Category {
   id: string;
@@ -333,3 +333,148 @@ export const SUGGESTIONS = [
   { text: "جبنة شيدر أيرلندي معتقة", category: "ألبان وأجبان" },
   { text: "عسل سدر جبلي أصلي طبيعي", category: "بقالة ومؤن" }
 ];
+
+export const POPULAR_RECIPES: StructuredRecipe[] = [
+  {
+    id: "recipe_bamia",
+    title: "طاجن البامية باللحم البقري البلدي والأرز البسمتي",
+    description: "وجبة مصرية أصيلة محضرة بقطعيات اللحم البقري الطازج من جزارة هايبر المصري مع أرز بسمتي فاخر.",
+    prepTime: "٤٥ دقيقة",
+    servings: "٤ أفراد",
+    ingredients: [
+      {
+        name: "لحم موزة بقري بلدي طازج",
+        amount: "1 كجم",
+        productId: "p_deal_1",
+        productName: "لحم موزة بقري بلدي طازج (1 كجم)",
+        price: 360,
+        isWeightBased: true,
+        requiredWeightOrQty: 1,
+        isAvailable: true
+      },
+      {
+        name: "أرز مصري بسمتي حبة طويلة فاخر",
+        amount: "5 كجم (كيس عائلي)",
+        productId: "p_best_1",
+        productName: "أرز مصري بسمتي حبة طويلة فاخر (5 كجم)",
+        price: 195,
+        isWeightBased: false,
+        requiredWeightOrQty: 1,
+        isAvailable: true
+      },
+      {
+        name: "طماطم شيري بلدي عنقودية للصلصة",
+        amount: "500 جم",
+        productId: "p_fresh_1",
+        productName: "طماطم شيري بلدي عنقودية (500 جم)",
+        price: 24,
+        isWeightBased: true,
+        requiredWeightOrQty: 0.5,
+        isAvailable: true
+      },
+      {
+        name: "زيت زيتون بكر ممتاز سيناوي",
+        amount: "1 لتر",
+        productId: "p_deal_2",
+        productName: "زيت زيتون بكر ممتاز معصور بارد (1 لتر)",
+        price: 185,
+        isWeightBased: false,
+        requiredWeightOrQty: 1,
+        isAvailable: true
+      }
+    ]
+  },
+  {
+    id: "recipe_chicken",
+    title: "صدور الدجاج المشوية بصوص العسل وزيت الزيتون",
+    description: "وجبة صحية غنية بالبروتين ومتبلة بالعسل الجبلي الطبيعي وزيت الزيتون البكر.",
+    prepTime: "٣٠ دقيقة",
+    servings: "٣ أفراد",
+    ingredients: [
+      {
+        name: "دجاج فيليه صدور طازج",
+        amount: "1 كجم",
+        productId: "p_best_2",
+        productName: "دجاج فيليه صدور طازج (1 كجم)",
+        price: 245,
+        isWeightBased: true,
+        requiredWeightOrQty: 1,
+        isAvailable: true
+      },
+      {
+        name: "عسل سدر جبلي أصلي طبيعي",
+        amount: "500 جم",
+        productId: "p_best_3",
+        productName: "عسل سدر جبلي أصلي طبيعي (500 جم)",
+        price: 320,
+        isWeightBased: false,
+        requiredWeightOrQty: 1,
+        isAvailable: true
+      },
+      {
+        name: "زيت زيتون بكر ممتاز",
+        amount: "1 لتر",
+        productId: "p_deal_2",
+        productName: "زيت زيتون بكر ممتاز معصور بارد (1 لتر)",
+        price: 185,
+        isWeightBased: false,
+        requiredWeightOrQty: 1,
+        isAvailable: true
+      }
+    ]
+  },
+  {
+    id: "recipe_breakfast",
+    title: "إفطار كونسيرج هايبر المصري: جبنة شيدر وفراولة طازجة",
+    description: "طبق إفطار أوروبي راقٍ يجمع بين الفراولة البلدي الطازجة وجبنة الشيدر المعتقة والحليب الطازج.",
+    prepTime: "١٠ دقائق",
+    servings: "فردين",
+    ingredients: [
+      {
+        name: "فراولة بلدي طازجة سوبر",
+        amount: "1 كجم",
+        productId: "p_deal_3",
+        productName: "فراولة بلدي طازجة سوبر (1 كجم)",
+        price: 35,
+        isWeightBased: true,
+        requiredWeightOrQty: 1,
+        isAvailable: true
+      },
+      {
+        name: "جبنة شيدر أيرلندي معتقة",
+        amount: "250 جم",
+        productId: "p_deal_4",
+        productName: "جبنة شيدر أيرلندي معتقة (250 جم)",
+        price: 110,
+        isWeightBased: false,
+        requiredWeightOrQty: 1,
+        isAvailable: true
+      },
+      {
+        name: "حليب بقري مبستر كامل الدسم",
+        amount: "1 لتر",
+        productId: "p_fresh_2",
+        productName: "حليب بقري مبستر كامل الدسم (1 لتر)",
+        price: 38,
+        isWeightBased: false,
+        requiredWeightOrQty: 1,
+        isAvailable: true
+      }
+    ]
+  }
+];
+
+export const findRecipeByQuery = (query: string): StructuredRecipe | null => {
+  const q = query.toLowerCase();
+  if (q.includes('بامية') || q.includes('ملوخية') || q.includes('طاجن') || q.includes('لحم') || q.includes('طبيخ') || q.includes('غدا')) {
+    return POPULAR_RECIPES[0];
+  }
+  if (q.includes('دجاج') || q.includes('فراخ') || q.includes('فيليه') || q.includes('مشوي')) {
+    return POPULAR_RECIPES[1];
+  }
+  if (q.includes('فطار') || q.includes('إفطار') || q.includes('فراولة') || q.includes('شيدر') || q.includes('جبنة')) {
+    return POPULAR_RECIPES[2];
+  }
+  return null;
+};
+

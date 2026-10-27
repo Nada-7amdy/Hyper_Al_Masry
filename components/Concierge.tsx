@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Sparkles, User, Gem } from 'lucide-react';
+import { Send, Sparkles, User, Gem, Utensils, Clock, Users, CheckCircle2, ShoppingCart } from 'lucide-react';
 import { sendMessageToConcierge } from '../services/gemini';
-import { ChatMessage } from '../types';
+import { ChatMessage, StructuredRecipe } from '../types';
 
-export const Concierge: React.FC = () => {
+export interface ConciergeProps {
+  onAddRecipeToCart?: (recipe: StructuredRecipe) => void;
+  showToast?: (message: string, type?: 'success' | 'info') => void;
+}
+
+export const Concierge: React.FC<ConciergeProps> = ({ onAddRecipeToCart, showToast }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: 'model', text: 'مرحباً بكم في هايبر المصري! كيف يمكنني مساعدتكم اليوم في العثور على أحدث عروضنا أو المنتجات الطازجة أو تتبع طلباتكم؟' }
   ]);
@@ -27,10 +32,17 @@ export const Concierge: React.FC = () => {
     setInput('');
     setIsLoading(true);
 
-    const responseText = await sendMessageToConcierge(messages, input);
-    
-    setMessages(prev => [...prev, { role: 'model', text: responseText }]);
-    setIsLoading(false);
+    try {
+      const res = await sendMessageToConcierge(messages, input);
+      setMessages(prev => [...prev, { role: 'model', text: res.text, recipe: res.recipe }]);
+    } catch {
+      setMessages(prev => [...prev, { 
+        role: 'model', 
+        text: 'يسعدنا دائماً خدمتك في هايبر المصري! يمكنك تصفح المنتجات الطازجة في قسم السوق أو التحدث معنا في أي وقت.' 
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -77,7 +89,66 @@ export const Concierge: React.FC = () => {
                       ? 'bg-slate-100 dark:bg-white/10 text-slate-800 dark:text-white rounded-tr-sm border border-slate-200 dark:border-transparent' 
                       : 'bg-slate-55 dark:bg-[#1a1a1a] text-slate-700 dark:text-gray-300 border border-slate-200 dark:border-white/5 rounded-tl-sm shadow-sm'
                    }`}>
-                      {msg.text}
+                      <div className="whitespace-pre-line">{msg.text}</div>
+
+                      {/* Structured Recipe Card with Catalog Linkage */}
+                      {msg.recipe && (
+                        <div className="mt-4 p-4 rounded-xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/30 text-right space-y-3">
+                          <div className="flex items-center justify-between border-b border-emerald-500/20 pb-2 flex-row-reverse">
+                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full font-cairo">
+                              وصفة ذكية مقترحة
+                            </span>
+                            <h4 className="font-cairo font-black text-sm text-slate-900 dark:text-white flex items-center gap-1.5 flex-row-reverse">
+                              <Utensils size={15} className="text-emerald-500" />
+                              <span>{msg.recipe.title}</span>
+                            </h4>
+                          </div>
+
+                          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                            {msg.recipe.description}
+                          </p>
+
+                          <div className="flex items-center justify-end gap-4 text-[10px] text-slate-500 dark:text-slate-400 flex-row-reverse">
+                            <span className="flex items-center gap-1 flex-row-reverse">
+                              <Clock size={12} className="text-emerald-500" />
+                              <span>وقت التحضير: {msg.recipe.prepTime}</span>
+                            </span>
+                            <span className="flex items-center gap-1 flex-row-reverse">
+                              <Users size={12} className="text-emerald-500" />
+                              <span>تكفي: {msg.recipe.servings}</span>
+                            </span>
+                          </div>
+
+                          <div className="space-y-1.5 border-t border-emerald-500/15 pt-2.5">
+                            <p className="font-bold text-[11px] text-slate-700 dark:text-slate-200 mb-1">
+                              المقادير المتوفرة من كتالوج المتجر:
+                            </p>
+                            {msg.recipe.ingredients.map((ing, i) => (
+                              <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-emerald-500/5 last:border-b-0 flex-row-reverse">
+                                <span className="flex items-center gap-1.5 flex-row-reverse">
+                                  <CheckCircle2 size={13} className="text-emerald-500 flex-shrink-0" />
+                                  <span className="text-slate-700 dark:text-slate-200">{ing.name} ({ing.amount})</span>
+                                </span>
+                                <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold text-[11px]">
+                                  {ing.price ? `${ing.price} ج.م` : 'متوفر'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {onAddRecipeToCart && (
+                            <button
+                              onClick={() => {
+                                onAddRecipeToCart(msg.recipe!);
+                              }}
+                              className="w-full mt-2 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-cairo font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 active:scale-[0.98] transition-all cursor-pointer"
+                            >
+                              <ShoppingCart size={15} />
+                              <span>🛒 أضف مقادير الوصفة كاملة إلى السلة</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
                    </div>
                 </div>
              </div>

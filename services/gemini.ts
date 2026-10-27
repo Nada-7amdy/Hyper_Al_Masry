@@ -1,5 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
-import { ChatMessage } from "../types";
+import { ChatMessage, StructuredRecipe } from "../types";
+import { findRecipeByQuery } from "../data";
+
+export interface ConciergeResponse {
+  text: string;
+  recipe?: StructuredRecipe;
+}
 
 const getApiKey = (): string => {
   try {
@@ -157,12 +163,16 @@ export const generateCulinaryFallback = (message: string): string => {
 export const sendMessageToConcierge = async (
   history: ChatMessage[], 
   newMessage: string
-): Promise<string> => {
+): Promise<ConciergeResponse> => {
   const apiKey = getApiKey();
+  const matchedRecipe = findRecipeByQuery(newMessage);
 
   // If no API key is provided, gracefully serve the authentic culinary concierge engine
   if (!apiKey) {
-    return generateCulinaryFallback(newMessage);
+    return {
+      text: generateCulinaryFallback(newMessage),
+      recipe: matchedRecipe || undefined
+    };
   }
 
   try {
@@ -181,9 +191,15 @@ export const sendMessageToConcierge = async (
     });
 
     const result = await chat.sendMessage({ message: newMessage });
-    return result.text || generateCulinaryFallback(newMessage);
+    return {
+      text: result.text || generateCulinaryFallback(newMessage),
+      recipe: matchedRecipe || undefined
+    };
   } catch (error) {
     console.warn("Concierge API call failed, falling back to local culinary engine:", error);
-    return generateCulinaryFallback(newMessage);
+    return {
+      text: generateCulinaryFallback(newMessage),
+      recipe: matchedRecipe || undefined
+    };
   }
 };

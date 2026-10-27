@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Store, ShoppingBag, Shirt, Award, MapPin, Sparkles, Bot, PenTool, LayoutGrid, Truck, Activity, X, CreditCard, ShoppingCart, Sun, Moon, Star, Plus, ShieldCheck, Check, ChevronRight, Layers, Bell, User, Settings } from 'lucide-react';
-import { Tab, Product, CartItem, ActiveOrder } from './types';
+import { Tab, Product, CartItem, ActiveOrder, StructuredRecipe } from './types';
 import { db } from './services/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Concierge } from './components/Concierge';
+import { CheckoutDrawer } from './components/CheckoutDrawer';
 import { SupermarketServices } from './components/SupermarketServices';
 import { Marketplace } from './components/Marketplace';
 import { TrackingMap } from './components/TrackingMap';
@@ -102,6 +103,23 @@ const App = () => {
   });
 
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+
+  // Customer Profile State (Neutral Identity - Issue 5)
+  const [customerProfile, setCustomerProfile] = useState<{
+    name?: string;
+    phone?: string;
+    district?: string;
+    governorate?: string;
+  } | null>(() => {
+    try {
+      const saved = localStorage.getItem('almasri_customer_profile');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Cart LocalStorage Sync
@@ -217,38 +235,17 @@ const App = () => {
     return acc + (item.price * multiplier);
   }, 0);
 
-  // Dynamic End-to-End Checkout Flow (DEF-05)
-  const handleCheckout = async () => {
-    if (cart.length === 0) return;
-
-    let deliveryAddress = "شارع التسعين، التجمع الخامس، القاهرة";
-    try {
-      const savedAddr = localStorage.getItem('almasri_selected_address');
-      if (savedAddr) {
-        const parsed = JSON.parse(savedAddr);
-        if (parsed.fullAddress || parsed.name) {
-          deliveryAddress = parsed.fullAddress || `${parsed.name}، ${parsed.city || 'القاهرة'}`;
-        }
-      }
-    } catch {
-      // safe fallback
-    }
-
-    const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}-EG`;
-    const finalTotal = cartTotal + (cartTotal >= 150 ? 0 : 15);
-    const totalItems = cart.reduce((acc, item) => acc + (item.isWeightBased ? 1 : item.quantity), 0);
-
-    const newOrder: ActiveOrder = {
-      orderId,
-      itemsCount: totalItems,
-      total: finalTotal,
-      address: deliveryAddress,
-      createdAt: new Date().toISOString()
-    };
-
+  // Realistic Egyptian Checkout Success Handler (Issue 2)
+  const handleOrderSuccess = async (newOrder: ActiveOrder) => {
     setActiveOrder(newOrder);
+
+    // Persist active order and maintain historical order log in localStorage
     try {
       localStorage.setItem('almasri_active_order', JSON.stringify(newOrder));
+      const historyStr = localStorage.getItem('almasri_order_history');
+      const history: ActiveOrder[] = historyStr ? JSON.parse(historyStr) : [];
+      const updatedHistory = [newOrder, ...history.filter(o => o.orderId !== newOrder.orderId)].slice(0, 30);
+      localStorage.setItem('almasri_order_history', JSON.stringify(updatedHistory));
     } catch (e) {
       console.warn('localStorage save failed:', e);
     }
@@ -258,9 +255,15 @@ const App = () => {
       if (db) {
         await addDoc(collection(db, 'orders'), {
           orderId: newOrder.orderId,
+          customerName: newOrder.customerName || 'عميل هايبر المصري',
+          customerPhone: newOrder.customerPhone || '',
           itemsCount: newOrder.itemsCount,
           total: newOrder.total,
+          subtotal: newOrder.subtotal ?? cartTotal,
+          deliveryFee: newOrder.deliveryFee ?? (cartTotal >= 150 ? 0 : 15),
           address: newOrder.address,
+          addressDetails: newOrder.addressDetails || null,
+          paymentMethod: newOrder.paymentMethod || 'CASH_ON_DELIVERY',
           items: cart.map(item => ({
             id: item.id,
             name: item.name,
@@ -269,14 +272,20 @@ const App = () => {
             selectedWeight: item.selectedWeight ?? null,
             isWeightBased: !!item.isWeightBased
           })),
-          subtotal: cartTotal,
-          deliveryFee: cartTotal >= 150 ? 0 : 15,
           status: 'PREPARING',
           timestamp: serverTimestamp()
         });
       }
     } catch (err) {
       console.warn('Firebase order sync fallback:', err);
+    }
+
+    // Refresh customer profile from storage
+    try {
+      const p = localStorage.getItem('almasri_customer_profile');
+      if (p) setCustomerProfile(JSON.parse(p));
+    } catch {
+      // safe fallback
     }
 
     // Reset cart
@@ -287,9 +296,30 @@ const App = () => {
       // safe fallback
     }
 
+    setIsCheckoutOpen(false);
     setIsCartOpen(false);
     setActiveTab(Tab.TRACKING);
-    showToast(`تم تأكيد طلبك (${orderId}) بنجاح! جاري تحضير طلبك...`, 'success');
+    showToast(`تم تأكيد طلبك (${newOrder.orderId}) بنجاح! جاري تحضير طلبك... 🚚`, 'success');
+  };
+
+  // Recipe-to-Cart Integration (Issue 6)
+  const handleAddRecipeToCart = (recipe: StructuredRecipe) => {
+    let addedCount = 0;
+    recipe.ingredients.forEach(ing => {
+      if (ing.productId) {
+        const prod = PRODUCTS.find(p => p.id === ing.productId);
+        if (prod) {
+          addToCart(prod, ing.isWeightBased ? ing.requiredWeightOrQty : undefined);
+          addedCount++;
+        }
+      }
+    });
+
+    if (addedCount > 0) {
+      showToast(`تمت إضافة مقادير "${recipe.title}" (${addedCount} أصناف) إلى سلتك! 🛒`, 'success');
+    } else {
+      showToast(`تم استعراض مقادير "${recipe.title}"`, 'info');
+    }
   };
 
   // 3D Tilt Logic
@@ -489,11 +519,14 @@ const App = () => {
                     </div>
                     
                     <button 
-                      onClick={handleCheckout} 
+                      onClick={() => {
+                        setIsCartOpen(false);
+                        setIsCheckoutOpen(true);
+                      }} 
                       className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-[#19C37D] text-black hover:opacity-90 active:scale-95 transition-all shadow-[0_4px_15px_rgba(25,195,125,0.2)] cursor-pointer"
                     >
                         <CreditCard size={15} /> 
-                        <span>تأكيد وشراء الطلب فوراً</span>
+                        <span>المتابعة لبيانات العنوان والدفع</span>
                     </button>
                 </div>
               )}
@@ -690,7 +723,7 @@ const App = () => {
               </AnimatePresence>
             </div>
 
-            {/* 4. User Profile dropdown */}
+            {/* 4. Dynamic Customer Profile dropdown (Issue 5) */}
             <div className="relative">
               <button 
                 id="header-profile-btn"
@@ -706,9 +739,15 @@ const App = () => {
                 }`}
                 title="حسابك الشخصي"
               >
-                <div className="w-full h-full rounded-[10px] bg-emerald-500 text-black font-black text-xs flex items-center justify-center font-cairo">
-                  ن م
-                </div>
+                {customerProfile?.name ? (
+                  <div className="w-full h-full rounded-[10px] bg-emerald-500 text-black font-black text-xs flex items-center justify-center font-cairo">
+                    {customerProfile.name.trim().split(' ').slice(0, 2).map(w => w[0]).join('') || 'ع'}
+                  </div>
+                ) : (
+                  <div className="w-full h-full rounded-[10px] bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-gray-300 flex items-center justify-center">
+                    <User size={18} />
+                  </div>
+                )}
               </button>
 
               <AnimatePresence>
@@ -722,38 +761,68 @@ const App = () => {
                       className="absolute left-0 mt-2.5 w-80 bg-white dark:bg-[#18181b] border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden text-right"
                     >
                       <div className="p-4 bg-emerald-500/10 dark:bg-emerald-500/5 text-right border-b border-slate-100 dark:border-white/5">
-                        <p className="text-xs text-slate-400 dark:text-gray-500 leading-none">مرحباً بك، عميلنا المميز</p>
-                        <h4 className="font-cairo text-sm font-black text-slate-900 dark:text-white mt-1">ندى المصري</h4>
-                        <span className="text-[10px] text-emerald-500 font-bold bg-emerald-500/10 dark:bg-emerald-500/20 px-2.5 py-0.5 rounded-full inline-block mt-2">
-                          🌟 العضوية الذهبية - ١,٢٥٠ نقطة
+                        <p className="text-xs text-slate-400 dark:text-gray-500 leading-none">
+                          {customerProfile?.name ? 'مرحباً بك، عميلنا العزيز' : 'أهلاً بك في هايبر المصري'}
+                        </p>
+                        <h4 className="font-cairo text-sm font-black text-slate-900 dark:text-white mt-1">
+                          {customerProfile?.name || 'حساب زائر كريم'}
+                        </h4>
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 dark:bg-emerald-500/20 px-2.5 py-0.5 rounded-full inline-block mt-2 font-cairo">
+                          {customerProfile?.district ? `📍 ${customerProfile.district}` : '🛒 تجربة تسوق عائلية فاخرة'}
                         </span>
                       </div>
                       <div className="p-2 space-y-1">
                         <button 
                           onClick={() => { setIsProfileOpen(false); setActiveTab(Tab.TRACKING); }}
-                          className="w-full text-right py-2 px-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2 flex-row-reverse"
+                          className="w-full text-right py-2 px-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2 flex-row-reverse cursor-pointer"
                         >
                           <Truck size={14} className="text-emerald-500" />
                           <span>تتبع طلبي الحالي</span>
                         </button>
                         <button 
                           onClick={() => { setIsProfileOpen(false); setActiveTab(Tab.ATELIER); }}
-                          className="w-full text-right py-2 px-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2 flex-row-reverse"
+                          className="w-full text-right py-2 px-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2 flex-row-reverse cursor-pointer"
                         >
                           <Bot size={14} className="text-emerald-500" />
-                          <span>المساعد الذكي الرقمي</span>
+                          <span>المساعد الرقمي الذكي والوصفات</span>
                         </button>
                         <button 
                           onClick={() => { setIsProfileOpen(false); setActiveTab(Tab.PACKAGING); }}
-                          className="w-full text-right py-2 px-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2 flex-row-reverse"
+                          className="w-full text-right py-2 px-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2 flex-row-reverse cursor-pointer"
                         >
                           <ShieldCheck size={14} className="text-emerald-500" />
-                          <span>فحص جودة التعبئة والتغليف 🍏</span>
+                          <span>فلسفة العلامة ومعايير التغليف الفاخر 🌿</span>
                         </button>
-                        <div className="h-px bg-slate-100 dark:bg-white/5 my-1"></div>
-                        <div className="px-3 py-2 text-[10px] text-slate-400 dark:text-gray-500 font-medium">
-                          بريدك الإلكتروني: nada11eelmasry@gmail.com
-                        </div>
+                        
+                        {!customerProfile?.name ? (
+                          <button 
+                            onClick={() => { 
+                              setIsProfileOpen(false); 
+                              setIsCheckoutOpen(true); 
+                            }}
+                            className="w-full mt-1 text-center py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold transition-colors cursor-pointer"
+                          >
+                            تسجيل بيانات التوصيل والعنوان 📝
+                          </button>
+                        ) : (
+                          <>
+                            <div className="h-px bg-slate-100 dark:bg-white/5 my-1"></div>
+                            <div className="px-3 py-1 text-[11px] text-slate-500 dark:text-gray-400 font-medium">
+                              الموبايل: <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{customerProfile.phone}</span>
+                            </div>
+                            <button 
+                              onClick={() => {
+                                localStorage.removeItem('almasri_customer_profile');
+                                setCustomerProfile(null);
+                                showToast("تم تسجيل الخروج ومسح بيانات الجلسة بنجاح", "info");
+                                setIsProfileOpen(false);
+                              }}
+                              className="w-full text-right py-2 px-3 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/20 text-xs font-bold text-red-500 flex items-center gap-2 flex-row-reverse cursor-pointer"
+                            >
+                              <span>تسجيل الخروج ومسح البيانات</span>
+                            </button>
+                          </>
+                        )}
                       </div>
                     </motion.div>
                   </>
@@ -869,7 +938,10 @@ const App = () => {
                    </div>
                    <h3 className="text-lg font-serif tracking-wide text-slate-800 dark:text-gray-200">مساعدك الذكي دائمًا في الخدمة</h3>
                  </div>
-                 <Concierge />
+                 <Concierge 
+                  onAddRecipeToCart={handleAddRecipeToCart}
+                  showToast={showToast}
+                />
                </section>
                <div className="h-px w-full bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent"></div>
                <section>
@@ -936,6 +1008,15 @@ const App = () => {
           <span className="text-[9px] font-extrabold font-cairo">مساعدك</span>
         </button>
       </div>
+
+      {/* Realistic Egyptian Checkout Drawer (Issue 2) */}
+      <CheckoutDrawer 
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        cart={cart}
+        cartTotal={cartTotal}
+        onOrderSuccess={handleOrderSuccess}
+      />
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes shimmer {
