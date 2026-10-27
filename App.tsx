@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Store, ShoppingBag, Shirt, Award, MapPin, Sparkles, Bot, PenTool, LayoutGrid, Truck, Activity, X, CreditCard, ShoppingCart, Sun, Moon, Star, Plus, ShieldCheck, Check, ChevronRight, Layers, Bell, User, Settings } from 'lucide-react';
-import { Tab, Product, CartItem } from './types';
+import { Tab, Product, CartItem, ActiveOrder } from './types';
+import { db } from './services/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Concierge } from './components/Concierge';
 import { SupermarketServices } from './components/SupermarketServices';
 import { Marketplace } from './components/Marketplace';
@@ -86,6 +88,16 @@ const App = () => {
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
+    }
+  });
+
+  // Active Order State with LocalStorage Hydration (DEF-05)
+  const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(() => {
+    try {
+      const saved = localStorage.getItem('almasri_active_order');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
     }
   });
 
@@ -204,6 +216,81 @@ const App = () => {
     const multiplier = item.isWeightBased ? (item.selectedWeight ?? 1) : item.quantity;
     return acc + (item.price * multiplier);
   }, 0);
+
+  // Dynamic End-to-End Checkout Flow (DEF-05)
+  const handleCheckout = async () => {
+    if (cart.length === 0) return;
+
+    let deliveryAddress = "شارع التسعين، التجمع الخامس، القاهرة";
+    try {
+      const savedAddr = localStorage.getItem('almasri_selected_address');
+      if (savedAddr) {
+        const parsed = JSON.parse(savedAddr);
+        if (parsed.fullAddress || parsed.name) {
+          deliveryAddress = parsed.fullAddress || `${parsed.name}، ${parsed.city || 'القاهرة'}`;
+        }
+      }
+    } catch {
+      // safe fallback
+    }
+
+    const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}-EG`;
+    const finalTotal = cartTotal + (cartTotal >= 150 ? 0 : 15);
+    const totalItems = cart.reduce((acc, item) => acc + (item.isWeightBased ? 1 : item.quantity), 0);
+
+    const newOrder: ActiveOrder = {
+      orderId,
+      itemsCount: totalItems,
+      total: finalTotal,
+      address: deliveryAddress,
+      createdAt: new Date().toISOString()
+    };
+
+    setActiveOrder(newOrder);
+    try {
+      localStorage.setItem('almasri_active_order', JSON.stringify(newOrder));
+    } catch (e) {
+      console.warn('localStorage save failed:', e);
+    }
+
+    // Sync to Firestore orders collection with safe fallback
+    try {
+      if (db) {
+        await addDoc(collection(db, 'orders'), {
+          orderId: newOrder.orderId,
+          itemsCount: newOrder.itemsCount,
+          total: newOrder.total,
+          address: newOrder.address,
+          items: cart.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            selectedWeight: item.selectedWeight ?? null,
+            isWeightBased: !!item.isWeightBased
+          })),
+          subtotal: cartTotal,
+          deliveryFee: cartTotal >= 150 ? 0 : 15,
+          status: 'PREPARING',
+          timestamp: serverTimestamp()
+        });
+      }
+    } catch (err) {
+      console.warn('Firebase order sync fallback:', err);
+    }
+
+    // Reset cart
+    setCart([]);
+    try {
+      localStorage.removeItem('almasri_cart');
+    } catch {
+      // safe fallback
+    }
+
+    setIsCartOpen(false);
+    setActiveTab(Tab.TRACKING);
+    showToast(`تم تأكيد طلبك (${orderId}) بنجاح! جاري تحضير طلبك...`, 'success');
+  };
 
   // 3D Tilt Logic
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -402,11 +489,7 @@ const App = () => {
                     </div>
                     
                     <button 
-                      onClick={() => { 
-                        setIsCartOpen(false); 
-                        setActiveTab(Tab.TRACKING); 
-                        showToast("تم تأكيد الطلب بنجاح! جاري تحضير طلبك...", 'success');
-                      }} 
+                      onClick={handleCheckout} 
                       className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-[#19C37D] text-black hover:opacity-90 active:scale-95 transition-all shadow-[0_4px_15px_rgba(25,195,125,0.2)] cursor-pointer"
                     >
                         <CreditCard size={15} /> 
@@ -725,7 +808,7 @@ const App = () => {
         )}
 
         {/* VIEW: TRACKING */}
-        {activeTab === Tab.TRACKING && <TrackingMap />}
+        {activeTab === Tab.TRACKING && <TrackingMap activeOrder={activeOrder} />}
 
         {/* VIEW: ADMIN */}
         {activeTab === Tab.ADMIN && <AdminDashboard />}

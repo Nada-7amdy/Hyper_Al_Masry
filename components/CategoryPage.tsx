@@ -7,6 +7,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Product, Category } from '../data';
 import { CartItem } from '../types';
 import { Button, Card, Chip, Input, ProductCard, CategoryCard, Modal, Loader, EmptyState } from './DesignSystem';
+import { db } from '../services/firebase';
+import { collection, addDoc, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 interface CategoryPageProps {
   category: Category;
@@ -54,18 +56,35 @@ export const CategoryPage: React.FC<CategoryPageProps> = ({
     setEmailError('');
   }, [category]);
 
-  // Handle vote increment
-  const handleVote = () => {
+  // Handle vote increment (DEF-06)
+  const handleVote = async () => {
     if (hasVoted) return;
     const newVotes = votes + 1;
     setVotes(newVotes);
     setHasVoted(true);
-    localStorage.setItem(`votes_${category.id}`, newVotes.toString());
-    localStorage.setItem(`voted_${category.id}`, 'true');
+    try {
+      localStorage.setItem(`votes_${category.id}`, newVotes.toString());
+      localStorage.setItem(`voted_${category.id}`, 'true');
+    } catch {
+      // safe fallback
+    }
+
+    try {
+      if (db) {
+        await setDoc(doc(db, 'categoryVotes', category.id), {
+          categoryId: category.id,
+          categoryName: category.name,
+          votes: newVotes,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }
+    } catch (err) {
+      console.warn('Firebase category vote fallback:', err);
+    }
   };
 
-  // Handle email subscribe
-  const handleSubscribe = (e: React.FormEvent) => {
+  // Handle email subscribe (DEF-06)
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
       setEmailError('الرجاء إدخال البريد الإلكتروني');
@@ -78,6 +97,26 @@ export const CategoryPage: React.FC<CategoryPageProps> = ({
     }
     setEmailError('');
     setIsSubscribed(true);
+
+    const cleanEmail = email.trim().toLowerCase();
+    try {
+      localStorage.setItem(`sub_${category.id}`, cleanEmail);
+    } catch {
+      // safe fallback
+    }
+
+    try {
+      if (db) {
+        await addDoc(collection(db, 'categorySubscriptions'), {
+          categoryId: category.id,
+          categoryName: category.name,
+          email: cleanEmail,
+          timestamp: serverTimestamp()
+        });
+      }
+    } catch (err) {
+      console.warn('Firebase category subscription fallback:', err);
+    }
   };
 
   // Filter and sort products

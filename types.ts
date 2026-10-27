@@ -52,3 +52,11 @@ export interface OrderStatus {
   timestamp: string;
   driverLocation?: { lat: number; lng: number };
 }
+
+export interface ActiveOrder {
+  orderId: string;
+  itemsCount: number;
+  total: number;
+  address: string;
+  createdAt?: string;
+}

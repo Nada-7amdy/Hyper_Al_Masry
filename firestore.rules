@@ -84,5 +84,64 @@ service cloud.firestore {
       // Absolute Immortality Rule: deleting invoices is strictly blocked
       allow delete: if false;
     }
+
+    // --- Order Feedback Collection (Sprint 1 & 2) ---
+    match /orderFeedback/{feedbackId} {
+      allow read: if isSignedIn();
+      allow create: if (
+        incoming().deliveryRating is number && incoming().deliveryRating >= 1 && incoming().deliveryRating <= 5 &&
+        incoming().productRating is number && incoming().productRating >= 1 && incoming().productRating <= 5 &&
+        incoming().orderId is string && incoming().orderId.size() <= 64 &&
+        incoming().tags is list &&
+        incoming().comment is string && incoming().comment.size() <= 1000
+      );
+      allow update, delete: if false;
+    }
+
+    // --- Orders Collection ---
+    match /orders/{orderId} {
+      allow read: if isSignedIn();
+      allow create: if (
+        incoming().orderId is string && incoming().orderId.size() <= 64 &&
+        incoming().total is number && incoming().total >= 0 &&
+        incoming().items is list &&
+        incoming().address is string && incoming().address.size() <= 500
+      );
+      allow update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    // --- Category Votes Collection ---
+    match /categoryVotes/{voteId} {
+      allow read: if true;
+      allow create, update: if (
+        incoming().votes is number && incoming().votes >= 0 &&
+        incoming().categoryId is string && incoming().categoryId.size() <= 64
+      );
+      allow delete: if false;
+    }
+
+    // --- Category Subscriptions Collection ---
+    match /categorySubscriptions/{subId} {
+      // Authenticated managers can read subscriptions
+      allow read: if isSignedIn();
+
+      // Anyone can subscribe with valid category, email, optional categoryName, and timestamp/createdAt
+      allow create: if (
+        incoming().categoryId is string && incoming().categoryId.size() <= 64 &&
+        incoming().email is string && incoming().email.size() <= 128 &&
+        incoming().email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$') &&
+        (!('categoryName' in incoming()) || incoming().categoryName == null || (incoming().categoryName is string && incoming().categoryName.size() <= 100)) &&
+        (
+          (('timestamp' in incoming()) || ('createdAt' in incoming())) &&
+          (!('timestamp' in incoming()) || incoming().timestamp is timestamp || (incoming().timestamp is string && incoming().timestamp.size() <= 64)) &&
+          (!('createdAt' in incoming()) || incoming().createdAt is timestamp || (incoming().createdAt is string && incoming().createdAt.size() <= 64))
+        )
+      );
+
+      // Subscriptions are strictly immutable (no updates or deletes allowed)
+      allow update, delete: if false;
+    }
   }
 }
+

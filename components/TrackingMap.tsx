@@ -1,6 +1,10 @@
 import React, { useState, useEffect, memo } from 'react';
-import { MapPin, Navigation, Phone, CheckCircle, Clock, Star, Send, Sparkles, Check, MessageSquare, ThumbsUp } from 'lucide-react';
-import { OrderStatus } from '../types';
+import { MapPin, Navigation, Phone, CheckCircle, Clock, Star, Send, Sparkles, Check, MessageSquare, ThumbsUp, ShoppingBag, ShieldCheck } from 'lucide-react';
+import { OrderStatus, ActiveOrder } from '../types';
+import { db } from '../services/firebase';
+import { collection, addDoc } from 'firebase/firestore';
+
+export type { ActiveOrder };
 
 const QUICK_TAGS = [
   "سريع جداً ⚡",
@@ -11,7 +15,28 @@ const QUICK_TAGS = [
   "أسعار ممتازة 🏷️"
 ];
 
-export const TrackingMap = memo(() => {
+interface TrackingMapProps {
+  activeOrder?: ActiveOrder | null;
+}
+
+export const TrackingMap = memo(({ activeOrder: propOrder }: TrackingMapProps) => {
+  const [activeOrder, setActiveOrder] = useState<ActiveOrder>(() => {
+    if (propOrder) return propOrder;
+    try {
+      const saved = localStorage.getItem('almasri_active_order');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return {
+      orderId: "ORD-8821-EG",
+      itemsCount: 3,
+      total: 560,
+      address: "شارع التسعين، التجمع الخامس، القاهرة",
+      createdAt: new Date().toISOString()
+    };
+  });
+
   const [status, setStatus] = useState<OrderStatus>({
     step: 1,
     label: "Processing Order",
@@ -28,6 +53,13 @@ export const TrackingMap = memo(() => {
   const [comment, setComment] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+
+  // Update when propOrder changes
+  useEffect(() => {
+    if (propOrder) {
+      setActiveOrder(propOrder);
+    }
+  }, [propOrder]);
 
   // Simulated WebSocket Connection for live tracking steps
   useEffect(() => {
@@ -54,27 +86,37 @@ export const TrackingMap = memo(() => {
     );
   };
 
-  const handleSubmitFeedback = (e: React.FormEvent) => {
+  const handleSubmitFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate API or Firestore submission
+    const feedbackPayload = {
+      orderId: activeOrder.orderId,
+      deliveryRating,
+      productRating,
+      tags: selectedTags,
+      comment: comment.trim(),
+      createdAt: new Date().toISOString()
+    };
+
+    // 1. Sync to live Firestore collection
+    try {
+      await addDoc(collection(db, "orderFeedback"), feedbackPayload);
+    } catch (err) {
+      console.warn("Firestore feedback sync unavailable, saved locally:", err);
+    }
+
+    // 2. Safe local storage persistence
+    try {
+      localStorage.setItem('almasri_last_feedback', JSON.stringify(feedbackPayload));
+    } catch {
+      // Safe storage fallback
+    }
+
     setTimeout(() => {
       setIsSubmitting(false);
       setIsSubmitted(true);
-      try {
-        localStorage.setItem('almasri_last_feedback', JSON.stringify({
-          orderId: "ORD-8821",
-          deliveryRating,
-          productRating,
-          tags: selectedTags,
-          comment,
-          submittedAt: new Date().toISOString()
-        }));
-      } catch {
-        // Safe storage fallback
-      }
-    }, 700);
+    }, 400);
   };
 
   const goldText = "text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300";
@@ -86,13 +128,30 @@ export const TrackingMap = memo(() => {
         {/* Status Panel */}
         <div className="lg:col-span-1 bg-white dark:bg-[#0d0d0d] rounded-[2rem] border border-slate-200 dark:border-white/10 p-8 flex flex-col justify-between shadow-md dark:shadow-none">
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-3xl font-serif text-slate-800 dark:text-white">طلب رقم #8821</h2>
+            <div className="flex items-center justify-between mb-2 flex-row-reverse">
               <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-full border border-emerald-500/20">
                 مباشر
               </span>
+              <h2 className="text-2xl sm:text-3xl font-serif text-slate-800 dark:text-white font-bold">
+                طلب #{activeOrder.orderId}
+              </h2>
             </div>
-            <p className="text-slate-500 dark:text-gray-500 text-xs uppercase tracking-widest mb-8">توصيل كونسيرج فاخر</p>
+            
+            <p className="text-slate-500 dark:text-gray-500 text-xs uppercase tracking-widest mb-4 text-right">
+              توصيل كونسيرج فاخر
+            </p>
+
+            {/* Order Brief Box */}
+            <div className="bg-slate-50 dark:bg-white/[0.03] p-4 rounded-2xl border border-slate-150 dark:border-white/5 mb-6 text-right space-y-1.5">
+              <div className="flex justify-between items-center text-xs flex-row-reverse">
+                <span className="text-slate-400">وجهة التوصيل:</span>
+                <span className="font-bold text-slate-700 dark:text-slate-200 truncate max-w-[180px]">{activeOrder.address}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs flex-row-reverse">
+                <span className="text-slate-400">إجمالي الحساب:</span>
+                <span className="font-mono font-bold text-emerald-500">{activeOrder.total.toLocaleString('ar-EG')} ج.م</span>
+              </div>
+            </div>
 
             <div className="space-y-8 relative">
               <div className="absolute left-[19px] top-2 bottom-2 w-[2px] bg-slate-100 dark:bg-white/5"></div>
@@ -172,7 +231,7 @@ export const TrackingMap = memo(() => {
         </div>
       </div>
 
-      {/* Sprint 1: Post-Purchase Feedback Module */}
+      {/* Post-Purchase Feedback Module */}
       <div className="bg-white dark:bg-[#0d0d0d] rounded-[2rem] border border-slate-200 dark:border-white/10 p-6 md:p-8 shadow-md dark:shadow-none text-right">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-6">
           <div className="space-y-1">
@@ -187,7 +246,7 @@ export const TrackingMap = memo(() => {
             </p>
           </div>
           <span className="text-xs font-mono px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-gray-400 border border-slate-200 dark:border-white/10">
-            طلب #8821
+            طلب #{activeOrder.orderId}
           </span>
         </div>
 

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Search, Plus, ShoppingBag, Star, Heart, Percent, ChevronRight, ChevronLeft, 
   Mic, QrCode, Sparkles, Clock, Flame, TrendingUp, ThumbsUp, Check, X, ArrowLeft,
-  ShoppingBag as CartIcon, Camera, Tag, MapPin, Building, Home, PlusCircle
+  ShoppingBag as CartIcon, Camera, Tag, MapPin, Building, Home, PlusCircle, Navigation
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, Category, CATEGORIES, PRODUCTS, POPULAR_SEARCHES, RECENT_SEARCHES, SUGGESTIONS } from '../data';
@@ -179,16 +179,68 @@ export const HomeRedesign: React.FC<HomeRedesignProps> = ({
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>(RECENT_SEARCHES);
 
-  // Delivery Address selector states
+  // Delivery Address selector states with LocalStorage persistence
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
-  const [selectedAddress, setSelectedAddress] = useState("المنزل - شارع التسعين، التجمع الخامس");
-  const [savedAddresses, setSavedAddresses] = useState([
-    { id: 'addr1', tag: 'المنزل', address: 'شارع التسعين، التجمع الخامس، القاهرة', type: 'home' },
-    { id: 'addr2', tag: 'العمل', address: 'مبنى ٣، القرية الذكية، طريق الإسكندرية الصحراوي', type: 'work' },
-    { id: 'addr3', tag: 'بيت العائلة', address: 'ش عثمان بن عفان، مصر الجديدة، القاهرة', type: 'family' }
-  ]);
+  const [selectedAddress, setSelectedAddress] = useState<string>(() => {
+    return localStorage.getItem('almasri_selected_address') || "المنزل - شارع التسعين، التجمع الخامس";
+  });
+  const [savedAddresses, setSavedAddresses] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('almasri_saved_addresses');
+      return saved ? JSON.parse(saved) : [
+        { id: 'addr1', tag: 'المنزل', address: 'شارع التسعين، التجمع الخامس، القاهرة', type: 'home' },
+        { id: 'addr2', tag: 'العمل', address: 'مبنى ٣، القرية الذكية، طريق الإسكندرية الصحراوي', type: 'work' },
+        { id: 'addr3', tag: 'بيت العائلة', address: 'ش عثمان بن عفان، مصر الجديدة، القاهرة', type: 'family' }
+      ];
+    } catch {
+      return [
+        { id: 'addr1', tag: 'المنزل', address: 'شارع التسعين، التجمع الخامس، القاهرة', type: 'home' }
+      ];
+    }
+  });
   const [newAddressText, setNewAddressText] = useState('');
   const [newAddressTag, setNewAddressTag] = useState('أخرى');
+  const [isLocating, setIsLocating] = useState(false);
+
+  // Sync address states to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('almasri_selected_address', selectedAddress);
+      localStorage.setItem('almasri_saved_addresses', JSON.stringify(savedAddresses));
+    } catch {
+      // Safe fallback
+    }
+  }, [selectedAddress, savedAddresses]);
+
+  const detectCurrentLocation = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      showToast("خاصية تحديد الموقع غير مدعومة في متصفحك", "info");
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsLocating(false);
+        const autoAddr = "موقعي الحالي (GPS) - التجمع الخامس، القاهرة";
+        setSelectedAddress(autoAddr);
+        const newAddr = {
+          id: 'addr_gps_' + Date.now(),
+          tag: 'موقعي الحالي',
+          address: `إحداثيات: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)} (التجمع الخامس)`,
+          type: 'other'
+        };
+        setSavedAddresses(prev => [newAddr, ...prev.filter(a => a.tag !== 'موقعي الحالي')]);
+        setIsAddressModalOpen(false);
+        showToast("تم تحديد موقعك بدقة عبر الـ GPS وتعيينه للتوصيل! 📍", "success");
+      },
+      (err) => {
+        setIsLocating(false);
+        console.warn("Geolocation fallback:", err);
+        showToast("يرجى اختيار منطقتك الفاخرة من القائمة أدناه 📍", "info");
+      },
+      { timeout: 7000, enableHighAccuracy: true }
+    );
+  };
   
   // Custom interactive dialog states
   const [isVoiceActive, setIsVoiceActive] = useState(false);
@@ -459,6 +511,58 @@ export const HomeRedesign: React.FC<HomeRedesignProps> = ({
         title="اختر عنوان التوصيل"
         size="md"
       >
+        {/* GPS Auto-detect Button */}
+        <button
+          onClick={detectCurrentLocation}
+          disabled={isLocating}
+          className="w-full mb-4 py-3 px-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer font-cairo shadow-sm"
+        >
+          {isLocating ? (
+            <>
+              <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+              <span>جاري تحديد موقعك الجغرافي...</span>
+            </>
+          ) : (
+            <>
+              <Navigation size={14} className="animate-pulse" />
+              <span>📍 تحديد موقعي الحالي تلقائياً عبر الـ GPS</span>
+            </>
+          )}
+        </button>
+
+        {/* Cairo / Giza Luxury Delivery Zones Chips */}
+        <div className="space-y-2 mb-4 text-right">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-cairo">مناطق التوصيل السريع الفاخرة</p>
+          <div className="flex flex-wrap gap-1.5 justify-end">
+            {[
+              { name: "التجمع الخامس", estimate: "25 دقيقة ⚡" },
+              { name: "الشيخ زايد", estimate: "35 دقيقة ⚡" },
+              { name: "الزمالك", estimate: "20 دقيقة ⚡" },
+              { name: "المعادي", estimate: "30 دقيقة ⚡" },
+              { name: "مصر الجديدة", estimate: "25 دقيقة ⚡" },
+              { name: "المهندسين والدقي", estimate: "25 دقيقة ⚡" }
+            ].map(zone => (
+              <button
+                key={zone.name}
+                onClick={() => {
+                  const addrStr = `منطقة ${zone.name} - توصيل ${zone.estimate}`;
+                  setSelectedAddress(addrStr);
+                  setIsAddressModalOpen(false);
+                  showToast(`تم تعيين منطقة التوصيل: ${zone.name} 📍 (${zone.estimate})`, 'info');
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer font-cairo ${
+                  selectedAddress.includes(zone.name)
+                    ? 'bg-emerald-500 text-black border-emerald-500 shadow-sm'
+                    : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-gray-300 hover:border-emerald-500/40'
+                }`}
+              >
+                <span>{zone.name}</span>
+                <span className="text-[9px] opacity-75 mr-1 font-mono">({zone.estimate})</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Saved Addresses list */}
         <div className="space-y-3 mb-5 text-right">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">عناوينك المسجلة</p>

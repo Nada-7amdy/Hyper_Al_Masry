@@ -106,7 +106,8 @@ export const PRODUCTS: Product[] = [
     deliveryEstimate: "توصيل خلال 45 دقيقة",
     badge: "عرض اليوم المميز",
     isDeal: true,
-    isBestSeller: true
+    isBestSeller: true,
+    isWeightBased: true
   },
   {
     id: "p_deal_2",
@@ -142,7 +143,8 @@ export const PRODUCTS: Product[] = [
     deliveryEstimate: "توصيل خلال 45 دقيقة",
     badge: "طازج اليوم",
     isDeal: true,
-    isFresh: true
+    isFresh: true,
+    isWeightBased: true
   },
   {
     id: "p_deal_4",
@@ -193,7 +195,8 @@ export const PRODUCTS: Product[] = [
     deliveryEstimate: "توصيل خلال 45 دقيقة",
     badge: "طلب مرتفع",
     isBestSeller: true,
-    isRecommended: true
+    isRecommended: true,
+    isWeightBased: true
   },
   {
     id: "p_best_3",
@@ -257,7 +260,8 @@ export const PRODUCTS: Product[] = [
     image: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=500&auto=format&fit=crop&q=80",
     deliveryEstimate: "قطاف الصباح",
     badge: "جديد قطاف اليوم",
-    isFresh: true
+    isFresh: true,
+    isWeightBased: true
   },
   {
     id: "p_fresh_2",
