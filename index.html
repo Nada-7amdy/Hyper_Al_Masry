@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hyper Al Masri</title>
+    <script>
+      (function() {
+        const savedTheme = localStorage.getItem('almasri_theme') || 'dark';
+        if (savedTheme === 'dark') {
+          document.documentElement.classList.add('dark');
+          document.addEventListener('DOMContentLoaded', () => {
+            document.body.classList.add('dark');
+          });
+        } else {
+          document.documentElement.classList.remove('dark');
+          document.addEventListener('DOMContentLoaded', () => {
+            document.body.classList.remove('dark');
+          });
+        }
+      })();
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;750;900&family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              serif: ['Playfair Display', 'serif'],
+              cairo: ['Cairo', 'sans-serif'],
+              outfit: ['Outfit', 'sans-serif'],
+            },
+            colors: {
+              mint: {
+                100: '#E6FDF5',
+                200: '#A7F3D0',
+                300: '#34D399',
+                400: '#10B981',
+                500: '#059669',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #f8fafc;
+        color: #0f172a;
+        transition: background-color 0.3s ease, color 0.3s ease;
+      }
+      body.dark {
+        background-color: #0A0B0D;
+        color: #ffffff;
+      }
+      /* Custom scrollbar for webkit */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+      }
+      body.dark ::-webkit-scrollbar-track {
+        background: #0f0f0f;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+      body.dark ::-webkit-scrollbar-thumb {
+        background: #333;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #10B981;
+      }
+    </style>
+
+<link rel="stylesheet" href="/index.css">
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "lucide-react": "https://esm.sh/lucide-react@^0.564.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.41.0",
+    "firebase/app": "https://esm.sh/firebase@10.8.0/app",
+    "firebase/firestore": "https://esm.sh/firebase@10.8.0/firestore",
+    "firebase/storage": "https://esm.sh/firebase@10.8.0/storage",
+    "firebase/auth": "https://esm.sh/firebase@10.8.0/auth",
+    "firebase/": "https://esm.sh/firebase@^12.9.0/"
+  }
+}
+</script>
+  <script type="module" crossorigin src="./assets/index-PQJ1vYsD.js"></script>
+</head>
+  <body>
+    <div id="root"></div>
+</body>
+</html>
