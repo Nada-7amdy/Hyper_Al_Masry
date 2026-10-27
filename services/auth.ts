@@ -56,16 +56,26 @@ export const getArabicAuthErrorMessage = (errorCode: string): string => {
   }
 };
 
+export const TRUSTED_ADMIN_EMAILS = [
+  'nada11eelmasry@gmail.com'
+];
+
 /**
  * Checks whether a user is an authorized administrator.
  * Security verification checks:
- * 1. Firebase Auth Custom Claims (token.admin == true or token.role == 'admin')
- * 2. Firestore collection `/admins/{uid}` document existence
+ * 1. Verified owner / family admin emails (TRUSTED_ADMIN_EMAILS)
+ * 2. Firebase Auth Custom Claims (token.admin == true or token.role == 'admin')
+ * 3. Firestore collection `/admins/{uid}` document existence
  */
 export const verifyIsAdmin = async (user: User | null): Promise<boolean> => {
   if (!user) return false;
 
-  // 1. Check custom claims on ID token
+  // 1. Check verified master admin / owner emails
+  if (user.email && TRUSTED_ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+    return true;
+  }
+
+  // 2. Check custom claims on ID token
   try {
     const tokenResult = await getIdTokenResult(user, true);
     if (tokenResult.claims.admin === true || tokenResult.claims.role === 'admin') {
