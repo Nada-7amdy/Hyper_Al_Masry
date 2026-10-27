@@ -1,9 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '../services/firebase';
-import { verifyIsAdmin, loginAdmin, logoutUser, getArabicAuthErrorMessage } from '../services/auth';
+import { 
+  verifyIsAdmin, 
+  loginAdmin, 
+  registerAdmin,
+  resetAdminPassword,
+  logoutUser, 
+  getArabicAuthErrorMessage,
+  TRUSTED_ADMIN_EMAILS
+} from '../services/auth';
 import { AdminDashboard } from './AdminDashboard';
-import { Shield, Lock, Mail, ArrowRight, Loader2, AlertCircle, LogOut, CheckCircle2, Store } from 'lucide-react';
+import { 
+  Shield, 
+  Lock, 
+  Mail, 
+  ArrowRight, 
+  Loader2, 
+  AlertCircle, 
+  LogOut, 
+  CheckCircle2, 
+  Store,
+  KeyRound,
+  UserCheck,
+  Sparkles
+} from 'lucide-react';
 
 interface AdminPortalProps {
   onBackToStore: () => void;
@@ -14,11 +35,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToStore }) => {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [checkingAuth, setCheckingAuth] = useState<boolean>(true);
 
-  // Admin login form states
-  const [adminEmail, setAdminEmail] = useState('');
+  // Mode: 'login' (تسجيل دخول) | 'register' (تفعيل حساب أول مرة) | 'forgot' (استعادة كلمة المرور)
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
+
+  // Admin form states
+  const [adminEmail, setAdminEmail] = useState('nada11eelmasry@gmail.com');
   const [adminPassword, setAdminPassword] = useState('');
-  const [loginLoading, setLoginLoading] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [authSuccess, setAuthSuccess] = useState('');
 
   // Subscribe to Firebase Auth state
   useEffect(() => {
@@ -37,19 +63,75 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToStore }) => {
     return () => unsubscribe();
   }, []);
 
-  const handleAdminLoginSubmit = async (e: React.FormEvent) => {
+  const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
+    setAuthSuccess('');
 
-    if (!adminEmail.trim() || !adminPassword) {
-      setAuthError('يرجى إدخال البريد الإلكتروني وكلمة المرور للإدارة.');
+    const trimmedEmail = adminEmail.trim().toLowerCase();
+
+    if (!trimmedEmail) {
+      setAuthError('يرجى إدخال البريد الإلكتروني للمسؤول.');
       return;
     }
 
-    setLoginLoading(true);
+    if (mode === 'forgot') {
+      setActionLoading(true);
+      try {
+        await resetAdminPassword(trimmedEmail);
+        setAuthSuccess(`تم إرسال رابط إعادة تعيين كلمة المرور إلى ${trimmedEmail} بنجاح. يرجى مراجعة بريدك الوارد.`);
+      } catch (err: any) {
+        console.warn("Reset password error:", err);
+        if (err?.message === 'UNAUTHORIZED_NOT_ADMIN') {
+          setAuthError('❌ هذا البريد الإلكتروني غير مصرح له بالوصول إلى لوحة الإدارة.');
+        } else {
+          setAuthError(getArabicAuthErrorMessage(err?.code || ''));
+        }
+      } finally {
+        setActionLoading(false);
+      }
+      return;
+    }
+
+    if (!adminPassword) {
+      setAuthError('يرجى إدخال كلمة المرور.');
+      return;
+    }
+
+    if (mode === 'register') {
+      if (adminPassword.length < 6) {
+        setAuthError('كلمة المرور يجب ألا تقل عن 6 أحرف أو أرقام.');
+        return;
+      }
+      if (adminPassword !== confirmPassword) {
+        setAuthError('كلمتا المرور غير متطابقتين.');
+        return;
+      }
+
+      setActionLoading(true);
+      try {
+        await registerAdmin(trimmedEmail, adminPassword, 'ندى المصري (المدير العام)');
+        setAuthSuccess('تم تفعيل وتوثيق حساب الإدارة بنجاح! جاري فتح لوحة التحكم...');
+      } catch (err: any) {
+        console.warn("Register admin error:", err);
+        if (err?.message === 'UNAUTHORIZED_NOT_ADMIN') {
+          setAuthError('❌ هذا البريد الإلكتروني ليس ضمن قائمة مديري الإدارة العائلية المعتمدين.');
+        } else if (err?.code === 'auth/email-already-in-use') {
+          setAuthError('هذا الحساب مفعل ومسجل بالفعل في النظام! يمكنك تسجيل الدخول مباشرة بكلمة المرور أو استعادتها.');
+          setMode('login');
+        } else {
+          setAuthError(getArabicAuthErrorMessage(err?.code || ''));
+        }
+      } finally {
+        setActionLoading(false);
+      }
+      return;
+    }
+
+    // Default: Mode === 'login'
+    setActionLoading(true);
     try {
-      await loginAdmin(adminEmail, adminPassword);
-      // onAuthStateChanged will handle updating state
+      await loginAdmin(trimmedEmail, adminPassword);
     } catch (err: any) {
       console.warn("Admin portal login error:", err);
       if (err?.message === 'UNAUTHORIZED_NOT_ADMIN') {
@@ -59,7 +141,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToStore }) => {
         setAuthError(getArabicAuthErrorMessage(code));
       }
     } finally {
-      setLoginLoading(false);
+      setActionLoading(false);
     }
   };
 
@@ -144,26 +226,71 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToStore }) => {
           </p>
         </div>
 
+        {/* Mode Selector Tabs */}
+        <div className="flex bg-white/5 p-1 rounded-2xl mb-6 border border-white/5">
+          <button
+            type="button"
+            onClick={() => { setMode('login'); setAuthError(''); setAuthSuccess(''); }}
+            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              mode === 'login'
+                ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/20'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Lock size={14} />
+            <span>تسجيل الدخول</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode('register'); setAuthError(''); setAuthSuccess(''); }}
+            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              mode === 'register'
+                ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/20'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Sparkles size={14} />
+            <span>تفعيل حساب لأول مرة</span>
+          </button>
+        </div>
+
+        {/* Success Alert */}
+        {authSuccess && (
+          <div className="p-3.5 mb-5 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs font-medium flex items-start gap-2.5 animate-in fade-in">
+            <CheckCircle2 size={18} className="flex-shrink-0 mt-0.5 text-emerald-400" />
+            <span className="leading-relaxed">{authSuccess}</span>
+          </div>
+        )}
+
         {/* Error Alert */}
         {authError && (
-          <div className="p-3.5 mb-5 rounded-2xl bg-red-950/30 border border-red-500/30 text-red-400 text-xs font-medium flex items-start gap-2.5">
+          <div className="p-3.5 mb-5 rounded-2xl bg-red-950/30 border border-red-500/30 text-red-400 text-xs font-medium flex items-start gap-2.5 animate-in fade-in">
             <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
             <span className="leading-relaxed">{authError}</span>
           </div>
         )}
 
         {/* Form */}
-        <form onSubmit={handleAdminLoginSubmit} className="space-y-4">
+        <form onSubmit={handleAdminSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-gray-300 mb-1.5">
-              البريد الإلكتروني للمسؤول
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-gray-300">
+                البريد الإلكتروني للمسؤول
+              </label>
+              <button
+                type="button"
+                onClick={() => setAdminEmail('nada11eelmasry@gmail.com')}
+                className="text-[10px] text-emerald-400 hover:underline cursor-pointer flex items-center gap-1"
+              >
+                <span>إيميل الإدارة: nada11eelmasry@gmail.com</span>
+              </button>
+            </div>
             <div className="relative">
               <input
                 type="email"
                 value={adminEmail}
                 onChange={(e) => setAdminEmail(e.target.value)}
-                placeholder="admin@hyperalmasri.app"
+                placeholder="nada11eelmasry@gmail.com"
                 required
                 autoFocus
                 className="w-full bg-[#18181b] border border-white/10 rounded-xl py-3 px-3.5 pr-10 text-xs text-white outline-none focus:border-emerald-500 transition-colors font-sans"
@@ -172,32 +299,83 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToStore }) => {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-gray-300 mb-1.5">
-              كلمة المرور السرية
-            </label>
-            <div className="relative">
-              <input
-                type="password"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                placeholder="••••••••••••"
-                required
-                className="w-full bg-[#18181b] border border-white/10 rounded-xl py-3 px-3.5 pr-10 text-xs text-white outline-none focus:border-emerald-500 transition-colors font-mono"
-              />
-              <Lock size={16} className="absolute top-1/2 -translate-y-1/2 right-3 text-gray-500" />
+          {mode !== 'forgot' && (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-gray-300">
+                  {mode === 'register' ? 'تعيين كلمة المرور الجديدة' : 'كلمة المرور السرية'}
+                </label>
+                {mode === 'login' && (
+                  <button
+                    type="button"
+                    onClick={() => { setMode('forgot'); setAuthError(''); setAuthSuccess(''); }}
+                    className="text-[10px] text-gray-400 hover:text-emerald-400 cursor-pointer"
+                  >
+                    نسيت كلمة المرور؟
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <input
+                  type="password"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  placeholder={mode === 'register' ? '6 أحرف أو أرقام على الأقل' : '••••••••••••'}
+                  required
+                  className="w-full bg-[#18181b] border border-white/10 rounded-xl py-3 px-3.5 pr-10 text-xs text-white outline-none focus:border-emerald-500 transition-colors font-mono"
+                />
+                <Lock size={16} className="absolute top-1/2 -translate-y-1/2 right-3 text-gray-500" />
+              </div>
             </div>
-          </div>
+          )}
+
+          {mode === 'register' && (
+            <div>
+              <label className="block text-xs font-bold text-gray-300 mb-1.5">
+                تأكيد كلمة المرور الجديدة
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="أعد كتابة كلمة المرور"
+                  required
+                  className="w-full bg-[#18181b] border border-white/10 rounded-xl py-3 px-3.5 pr-10 text-xs text-white outline-none focus:border-emerald-500 transition-colors font-mono"
+                />
+                <KeyRound size={16} className="absolute top-1/2 -translate-y-1/2 right-3 text-gray-500" />
+              </div>
+              <p className="text-[11px] text-gray-400 mt-2 leading-relaxed bg-white/5 p-2.5 rounded-xl border border-white/5">
+                💡 خاص بالمسؤول المعتمد: هذه الخطوة لمرة واحدة فقط لإنشاء كلمة المرور الخاصة بك وتفعيل وصولك المباشر للنظام.
+              </p>
+            </div>
+          )}
+
+          {mode === 'forgot' && (
+            <div className="bg-white/5 p-3 rounded-xl border border-white/5 text-[11px] text-gray-300 leading-relaxed">
+              سيتم إرسال رابط آمن ومباشر إلى بريدك الإلكتروني لإعادة تعيين كلمة المرور الخاصة بك.
+            </div>
+          )}
 
           <button
             type="submit"
-            disabled={loginLoading}
-            className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-60 text-black font-black text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+            disabled={actionLoading}
+            className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-60 text-black font-black text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 mt-2"
           >
-            {loginLoading ? (
+            {actionLoading ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
-                <span>جاري التحقق من هوية المسؤول...</span>
+                <span>جاري معالجة الطلب...</span>
+              </>
+            ) : mode === 'register' ? (
+              <>
+                <UserCheck size={16} />
+                <span>تفعيل حساب الإدارة وتعيين كلمة المرور</span>
+              </>
+            ) : mode === 'forgot' ? (
+              <>
+                <Mail size={16} />
+                <span>إرسال رابط إعادة التعيين</span>
               </>
             ) : (
               <>
@@ -206,6 +384,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToStore }) => {
               </>
             )}
           </button>
+
+          {mode === 'forgot' && (
+            <button
+              type="button"
+              onClick={() => { setMode('login'); setAuthError(''); setAuthSuccess(''); }}
+              className="w-full py-2 text-xs text-gray-400 hover:text-white transition-colors cursor-pointer text-center block"
+            >
+              العودة لتسجيل الدخول
+            </button>
+          )}
         </form>
 
         {/* Security Notice */}

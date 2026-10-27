@@ -4,7 +4,8 @@ import {
   signOut, 
   updateProfile, 
   User,
-  getIdTokenResult
+  getIdTokenResult,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './firebase';
@@ -216,6 +217,71 @@ export const loginAdmin = async (email: string, pass: string): Promise<CustomerP
   };
 
   return adminProfile;
+};
+
+/**
+ * Register/Activate an authorized administrator for the first time
+ */
+export const registerAdmin = async (
+  email: string, 
+  pass: string, 
+  name?: string
+): Promise<CustomerProfile> => {
+  const trimmedEmail = email.trim().toLowerCase();
+  
+  // Guard: Only trusted admin emails can register as admin
+  if (!TRUSTED_ADMIN_EMAILS.includes(trimmedEmail)) {
+    throw new Error("UNAUTHORIZED_NOT_ADMIN");
+  }
+
+  const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, pass);
+  const user = userCredential.user;
+
+  const adminName = name?.trim() || 'ندى المصري (المدير العام)';
+  try {
+    await updateProfile(user, { displayName: adminName });
+  } catch (err) {
+    console.warn("Could not update admin displayName:", err);
+  }
+
+  // Also write to /admins/{uid} in Firestore
+  try {
+    await setDoc(doc(db, "admins", user.uid), {
+      uid: user.uid,
+      email: trimmedEmail,
+      name: adminName,
+      role: 'ADMIN',
+      createdAt: serverTimestamp()
+    }, { merge: true });
+  } catch (err) {
+    console.warn("Could not write to /admins collection:", err);
+  }
+
+  const adminProfile: CustomerProfile = {
+    uid: user.uid,
+    name: adminName,
+    email: trimmedEmail,
+    role: 'ADMIN'
+  };
+
+  try {
+    localStorage.setItem('almasri_customer_profile', JSON.stringify(adminProfile));
+  } catch (e) {
+    console.warn("localStorage write failed:", e);
+  }
+
+  return adminProfile;
+};
+
+/**
+ * Send password reset email to authorized admin
+ */
+export const resetAdminPassword = async (email: string): Promise<void> => {
+  const trimmedEmail = email.trim().toLowerCase();
+  if (!TRUSTED_ADMIN_EMAILS.includes(trimmedEmail)) {
+    throw new Error("UNAUTHORIZED_NOT_ADMIN");
+  }
+  await sendPasswordResetEmail(auth, trimmedEmail);
 };
 
 /**
