@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, MapPin, Phone, User, Home, Building, CreditCard, Banknote, ShieldCheck, AlertCircle, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CartItem, PaymentMethodType, CustomerAddressDetails, ActiveOrder } from '../types';
+import { normalizeArabicNumerals, normalizeEgyptianPhone, EGY_PHONE_REGEX } from '../utils/phone';
 
 interface CheckoutDrawerProps {
   isOpen: boolean;
@@ -21,8 +22,6 @@ const CAIRO_GIZA_DISTRICTS = [
   "مدينة نصر",
   "السادس من أكتوبر"
 ];
-
-const EGY_PHONE_REGEX = /^(010|011|012|015)[0-9]{8}$/;
 
 export const CheckoutDrawer: React.FC<CheckoutDrawerProps> = ({
   isOpen,
@@ -65,7 +64,7 @@ export const CheckoutDrawer: React.FC<CheckoutDrawerProps> = ({
       newErrors.customerName = 'الرجاء إدخال الاسم الكامل (٣ أحرف على الأقل)';
     }
 
-    const cleanPhone = customerPhone.trim().replace(/\s+/g, '');
+    const cleanPhone = normalizeEgyptianPhone(customerPhone);
     if (!cleanPhone) {
       newErrors.customerPhone = 'رقم الموبايل إلزامي للتواصل أثناء التوصيل';
     } else if (!EGY_PHONE_REGEX.test(cleanPhone)) {
@@ -98,15 +97,20 @@ export const CheckoutDrawer: React.FC<CheckoutDrawerProps> = ({
 
     setIsSubmitting(true);
 
-    const fullAddress = `${governorate}، ${district}، ${street.trim()}، عمارة ${building.trim()}، دور ${floor.trim()}، شقة ${apartment.trim()}${landmark.trim() ? ` (علامة مميزة: ${landmark.trim()})` : ''}`;
+    const normalizedPhone = normalizeEgyptianPhone(customerPhone);
+    const normalizedBuilding = normalizeArabicNumerals(building.trim());
+    const normalizedFloor = normalizeArabicNumerals(floor.trim());
+    const normalizedApartment = normalizeArabicNumerals(apartment.trim());
+
+    const fullAddress = `${governorate}، ${district}، ${street.trim()}، عمارة ${normalizedBuilding}، دور ${normalizedFloor}، شقة ${normalizedApartment}${landmark.trim() ? ` (علامة مميزة: ${landmark.trim()})` : ''}`;
 
     const addressDetails: CustomerAddressDetails = {
       governorate,
       district,
       street: street.trim(),
-      building: building.trim(),
-      floor: floor.trim(),
-      apartment: apartment.trim(),
+      building: normalizedBuilding,
+      floor: normalizedFloor,
+      apartment: normalizedApartment,
       landmark: landmark.trim() || undefined
     };
 
@@ -116,7 +120,7 @@ export const CheckoutDrawer: React.FC<CheckoutDrawerProps> = ({
     const newOrder: ActiveOrder = {
       orderId,
       customerName: customerName.trim(),
-      customerPhone: customerPhone.trim(),
+      customerPhone: normalizedPhone,
       itemsCount,
       total: finalTotal,
       subtotal: cartTotal,
@@ -133,13 +137,13 @@ export const CheckoutDrawer: React.FC<CheckoutDrawerProps> = ({
     try {
       localStorage.setItem('almasri_customer_profile', JSON.stringify({
         name: customerName.trim(),
-        phone: customerPhone.trim(),
+        phone: normalizedPhone,
         governorate,
         district,
         street: street.trim(),
-        building: building.trim(),
-        floor: floor.trim(),
-        apartment: apartment.trim(),
+        building: normalizedBuilding,
+        floor: normalizedFloor,
+        apartment: normalizedApartment,
         landmark: landmark.trim()
       }));
     } catch {
@@ -224,7 +228,20 @@ export const CheckoutDrawer: React.FC<CheckoutDrawerProps> = ({
               <input 
                 type="tel"
                 value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
+                onChange={(e) => {
+                  setCustomerPhone(e.target.value);
+                  if (errors.customerPhone) {
+                    setErrors(prev => ({ ...prev, customerPhone: '' }));
+                  }
+                }}
+                onBlur={() => {
+                  if (customerPhone.trim()) {
+                    const normalized = normalizeEgyptianPhone(customerPhone);
+                    if (normalized && EGY_PHONE_REGEX.test(normalized)) {
+                      setCustomerPhone(normalized);
+                    }
+                  }
+                }}
                 placeholder="010XXXXXXXX / 011 / 012 / 015"
                 className={`w-full p-3 rounded-xl bg-slate-50 dark:bg-white/5 border text-xs font-mono focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-white ${errors.customerPhone ? 'border-red-500' : 'border-slate-200 dark:border-white/10'}`}
               />

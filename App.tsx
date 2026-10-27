@@ -1,14 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Store, ShoppingBag, Shirt, Award, MapPin, Sparkles, Bot, PenTool, LayoutGrid, Truck, Activity, X, CreditCard, ShoppingCart, Sun, Moon, Star, Plus, ShieldCheck, Check, ChevronRight, Layers, Bell, User, Settings } from 'lucide-react';
+import { Store, ShoppingBag, Shirt, Award, MapPin, Sparkles, Bot, PenTool, LayoutGrid, Truck, Activity, X, CreditCard, ShoppingCart, Sun, Moon, Star, Plus, ShieldCheck, Check, ChevronRight, Layers, Bell, User, Settings, LogIn, LogOut } from 'lucide-react';
 import { Tab, Product, CartItem, ActiveOrder, StructuredRecipe } from './types';
-import { db } from './services/firebase';
+import { db, auth } from './services/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { logoutUser } from './services/auth';
 import { Concierge } from './components/Concierge';
 import { CheckoutDrawer } from './components/CheckoutDrawer';
 import { SupermarketServices } from './components/SupermarketServices';
 import { Marketplace } from './components/Marketplace';
 import { TrackingMap } from './components/TrackingMap';
 import { AdminDashboard } from './components/AdminDashboard';
+import { AdminPortal } from './components/AdminPortal';
+import { CustomerAuthModal } from './components/CustomerAuthModal';
 import { HomeRedesign } from './components/HomeRedesign';
 import { CategoryPage } from './components/CategoryPage';
 import { CATEGORIES, Category, PRODUCTS, getActiveCatalogProducts } from './data';
@@ -52,6 +56,50 @@ const App = () => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Check if current route is private management /admin
+  const [isAdminRoute, setIsAdminRoute] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    const search = new URLSearchParams(window.location.search);
+    return path.startsWith('/admin') || hash.startsWith('#/admin') || search.get('view') === 'admin';
+  });
+
+  // Keep route synced with popstate and hashchange
+  useEffect(() => {
+    const handleRouteChange = () => {
+      const path = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      const search = new URLSearchParams(window.location.search);
+      setIsAdminRoute(path.startsWith('/admin') || hash.startsWith('#/admin') || search.get('view') === 'admin');
+    };
+    window.addEventListener('popstate', handleRouteChange);
+    window.addEventListener('hashchange', handleRouteChange);
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+      window.removeEventListener('hashchange', handleRouteChange);
+    };
+  }, []);
+
+  // Customer Firebase Auth State
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      if (user) {
+        setCustomerProfile(prev => ({
+          ...prev,
+          name: user.displayName || prev?.name || user.email?.split('@')[0],
+          phone: user.phoneNumber || prev?.phone
+        }));
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   const [notifications, setNotifications] = useState([
     { id: 'n1', text: '🎁 عروض اليوم بدأت الآن! وفر حتى ٣٠٪ على الخضروات الطازجة.', time: 'منذ ١٠ دقائق', unread: true },
     { id: 'n2', text: '🥩 تم تحديث أسعار قطعيات اللحوم البلدية الفاخرة اليوم.', time: 'منذ ساعة', unread: true },
@@ -261,6 +309,7 @@ const App = () => {
     try {
       if (db) {
         await addDoc(collection(db, 'orders'), {
+          userId: auth.currentUser?.uid || null,
           orderId: newOrder.orderId,
           customerName: newOrder.customerName || 'عميل هايبر المصري',
           customerPhone: newOrder.customerPhone || '',
@@ -378,6 +427,26 @@ const App = () => {
       </div>
     );
   };
+
+  // Render private AdminPortal if user navigated to /admin, #/admin, or ?view=admin
+  if (isAdminRoute) {
+    return (
+      <AdminPortal
+        onBackToStore={() => {
+          setIsAdminRoute(false);
+          if (window.location.hash.startsWith('#/admin')) {
+            window.location.hash = '';
+          } else if (new URLSearchParams(window.location.search).get('view') === 'admin') {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('view');
+            window.history.pushState({}, '', url.pathname + (url.search ? url.search : ''));
+          } else {
+            window.history.pushState({}, '', '/');
+          }
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FAFBFC] text-slate-800 dark:bg-[#0A0B0D] dark:text-white font-sans overflow-hidden relative selection:bg-[#19C37D]/20 selection:text-[#19C37D] transition-colors duration-300">
@@ -714,15 +783,6 @@ const App = () => {
                           <span className="font-medium text-slate-600 dark:text-slate-400">سعر الشحن الافتراضي</span>
                           <span className="font-bold text-[#19C37D] dark:text-emerald-400">توصيل مجاني 🎉</span>
                         </div>
-                        <button 
-                          onClick={() => {
-                            setIsSettingsOpen(false);
-                            setActiveTab(Tab.ADMIN);
-                          }}
-                          className="w-full py-2 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition-all"
-                        >
-                          فتح لوحة الإدارة ⚙️
-                        </button>
                       </div>
                     </motion.div>
                   </>
@@ -769,11 +829,14 @@ const App = () => {
                     >
                       <div className="p-4 bg-emerald-500/10 dark:bg-emerald-500/5 text-right border-b border-slate-100 dark:border-white/5">
                         <p className="text-xs text-slate-400 dark:text-gray-500 leading-none">
-                          {customerProfile?.name ? 'مرحباً بك، عميلنا العزيز' : 'أهلاً بك في هايبر المصري'}
+                          {currentUser ? 'مرحباً بك، عميلنا العزيز' : 'أهلاً بك في هايبر المصري'}
                         </p>
                         <h4 className="font-cairo text-sm font-black text-slate-900 dark:text-white mt-1">
-                          {customerProfile?.name || 'حساب زائر كريم'}
+                          {currentUser?.displayName || customerProfile?.name || (currentUser ? currentUser.email?.split('@')[0] : 'حساب زائر كريم')}
                         </h4>
+                        {currentUser?.email && (
+                          <p className="text-[11px] text-gray-400 font-mono mt-0.5 truncate">{currentUser.email}</p>
+                        )}
                         <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 dark:bg-emerald-500/20 px-2.5 py-0.5 rounded-full inline-block mt-2 font-cairo">
                           {customerProfile?.district ? `📍 ${customerProfile.district}` : '🛒 تجربة تسوق عائلية فاخرة'}
                         </span>
@@ -802,43 +865,53 @@ const App = () => {
                         </button>
 
                         <div className="h-px bg-slate-100 dark:bg-white/5 my-1"></div>
-                        <button 
-                          onClick={() => { 
-                            setIsProfileOpen(false); 
-                            setActiveTab(Tab.ADMIN); 
-                          }}
-                          className="w-full text-right py-2 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-2 flex-row-reverse cursor-pointer border border-amber-500/20 transition-colors"
-                        >
-                          <Settings size={14} className="text-amber-500" />
-                          <span>لوحة إدارة الأسعار والمخزن (خاصة بالعائلة) ⚙️</span>
-                        </button>
-                        
-                        {!customerProfile?.name ? (
-                          <button 
-                            onClick={() => { 
-                              setIsProfileOpen(false); 
-                              setIsCheckoutOpen(true); 
-                            }}
-                            className="w-full mt-1 text-center py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold transition-colors cursor-pointer"
-                          >
-                            تسجيل بيانات التوصيل والعنوان 📝
-                          </button>
+
+                        {!currentUser ? (
+                          <div className="p-1 space-y-2">
+                            <button 
+                              onClick={() => { 
+                                setIsProfileOpen(false); 
+                                setIsAuthModalOpen(true); 
+                              }}
+                              className="w-full text-center py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-black text-xs font-extrabold transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                              <LogIn size={14} />
+                              <span>تسجيل الدخول / إنشاء حساب</span>
+                            </button>
+                            <button 
+                              onClick={() => { 
+                                setIsProfileOpen(false); 
+                                setIsCheckoutOpen(true); 
+                              }}
+                              className="w-full text-center py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-600 dark:text-gray-300 text-xs font-bold transition-colors cursor-pointer"
+                            >
+                              <span>تسجيل عنوان وتفاصيل التوصيل 📝</span>
+                            </button>
+                          </div>
                         ) : (
                           <>
-                            <div className="h-px bg-slate-100 dark:bg-white/5 my-1"></div>
-                            <div className="px-3 py-1 text-[11px] text-slate-500 dark:text-gray-400 font-medium">
-                              الموبايل: <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{customerProfile.phone}</span>
-                            </div>
+                            {customerProfile?.phone && (
+                              <div className="px-3 py-1 text-[11px] text-slate-500 dark:text-gray-400 font-medium">
+                                الموبايل: <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{customerProfile.phone}</span>
+                              </div>
+                            )}
                             <button 
-                              onClick={() => {
+                              onClick={async () => {
+                                try {
+                                  await logoutUser();
+                                } catch (e) {
+                                  console.warn("Logout error:", e);
+                                }
                                 localStorage.removeItem('almasri_customer_profile');
                                 setCustomerProfile(null);
-                                showToast("تم تسجيل الخروج ومسح بيانات الجلسة بنجاح", "info");
+                                setCurrentUser(null);
+                                showToast("تم تسجيل الخروج بنجاح", "info");
                                 setIsProfileOpen(false);
                               }}
                               className="w-full text-right py-2 px-3 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/20 text-xs font-bold text-red-500 flex items-center gap-2 flex-row-reverse cursor-pointer"
                             >
-                              <span>تسجيل الخروج ومسح البيانات</span>
+                              <LogOut size={14} />
+                              <span>تسجيل الخروج من الحساب</span>
                             </button>
                           </>
                         )}
@@ -899,9 +972,9 @@ const App = () => {
         {/* VIEW: TRACKING */}
         {activeTab === Tab.TRACKING && <TrackingMap activeOrder={activeOrder} />}
 
-        {/* VIEW: ADMIN */}
+        {/* VIEW: ADMIN (Secured Portal) */}
         {activeTab === Tab.ADMIN && (
-          <AdminDashboard onBackToStore={() => setActiveTab(Tab.EXTERIOR)} />
+          <AdminPortal onBackToStore={() => setActiveTab(Tab.EXTERIOR)} />
         )}
 
         {/* VIEW: PACKAGING */}
@@ -1038,6 +1111,20 @@ const App = () => {
         cart={cart}
         cartTotal={cartTotal}
         onOrderSuccess={handleOrderSuccess}
+      />
+
+      {/* Customer Account Authentication Modal (Amazon-style luxury Arabic modal) */}
+      <CustomerAuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={(profile) => {
+          setCustomerProfile(prev => ({
+            ...prev,
+            name: profile.name || prev?.name,
+            phone: profile.phone || prev?.phone
+          }));
+          showToast(`مرحباً بك ${profile.name || ''}! تم تسجيل الدخول بنجاح 🎉`, 'success');
+        }}
       />
 
       <style dangerouslySetInnerHTML={{ __html: `

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../services/firebase';
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, increment } from 'firebase/firestore';
-import { Product } from '../types';
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { Product, ActiveOrder, OrderLifecycleStatus, ORDER_STATUS_LABELS } from '../types';
 import { getActiveCatalogProducts } from '../data';
 import { 
   Layers, Shield, Cpu, RefreshCw, BarChart2, ShoppingCart, Ban, Edit, Printer, Database, 
   Settings, Search, Plus, Minus, Trash2, Smartphone, CreditCard, DollarSign, Wifi, WifiOff, 
-  Bell, ArrowLeft, ArrowRight, Save, Scale, Check, Key, Zap, Flame, Award, HelpCircle
+  Bell, ArrowLeft, ArrowRight, Save, Scale, Check, Key, Zap, Flame, Award, HelpCircle,
+  Truck, Clock, MapPin, User as UserIcon
 } from 'lucide-react';
 
 // Helper to precisely format money/EGP in Piastres to human text
@@ -82,17 +83,16 @@ export interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore }) => {
-  // Roles: Core requirement (role-based access)
-  const [currentRole, setCurrentRole] = useState<'cashier' | 'manager' | 'executive'>('cashier');
+  // Roles: Authenticated Admin has full administrative and executive access
+  const [currentRole, setCurrentRole] = useState<'cashier' | 'manager' | 'executive'>('executive');
+  const [roleToken, setRoleToken] = useState<string | null>('TOKEN_EXE_POS_9999_SECURE');
   
-  // Enhanced Token-Based RBAC Access States for Security Patches (Pillar 1)
-  const [roleToken, setRoleToken] = useState<string | null>(null);
-  const [showRolePinModal, setShowRolePinModal] = useState<'manager' | 'executive' | null>(null);
-  const [enteredPin, setEnteredPin] = useState('');
-  const [pinError, setPinError] = useState('');
+  // Tab within POS & Admin dashboard (orders is default)
+  const [activeSubTab, setActiveSubTab] = useState<'orders' | 'inventory' | 'pos' | 'invoices' | 'bi' | 'peripherals'>('orders');
   
-  // Tab within POS dashboard
-  const [activeSubTab, setActiveSubTab] = useState<'pos' | 'invoices' | 'inventory' | 'bi' | 'peripherals'>('pos');
+  // Customer Online Orders State
+  const [customerOrders, setCustomerOrders] = useState<(ActiveOrder & { docId?: string })[]>([]);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   
   // Database States
   const [products, setProducts] = useState<Product[]>([]);
@@ -229,6 +229,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
       // Sort newest first
       combined.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       setInvoices(combined);
+
+      // Load customer delivery orders from Firestore collection 'orders'
+      let ordersList: (ActiveOrder & { docId?: string })[] = [];
+      try {
+        const ordersSnapshot = await getDocs(collection(db, "orders"));
+        ordersList = ordersSnapshot.docs.map(docSnap => {
+          const d = docSnap.data();
+          return {
+            docId: docSnap.id,
+            orderId: d.orderId || docSnap.id,
+            customerName: d.customerName || 'عميل هايبر المصري',
+            customerPhone: d.customerPhone || '',
+            itemsCount: d.itemsCount || (Array.isArray(d.items) ? d.items.length : 1),
+            total: typeof d.total === 'number' ? d.total : 0,
+            subtotal: d.subtotal,
+            deliveryFee: d.deliveryFee,
+            address: d.address || 'العنوان غير محدد',
+            addressDetails: d.addressDetails,
+            paymentMethod: d.paymentMethod || 'CASH_ON_DELIVERY',
+            status: (d.status as OrderLifecycleStatus) || 'PREPARING',
+            createdAt: d.timestamp?.toDate ? d.timestamp.toDate().toISOString() : (d.createdAt || new Date().toISOString())
+          };
+        });
+      } catch (err) {
+        console.warn("Could not fetch Firestore orders:", err);
+      }
+
+      // Merge with local order history fallback
+      try {
+        const localHistory: ActiveOrder[] = JSON.parse(localStorage.getItem('almasri_order_history') || '[]');
+        localHistory.forEach(lo => {
+          if (!ordersList.some(o => o.orderId === lo.orderId)) {
+            ordersList.push(lo);
+          }
+        });
+      } catch (e) {
+        console.warn("Could not merge local orders:", e);
+      }
+
+      // Sort newest first
+      ordersList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setCustomerOrders(ordersList);
     } catch (error) {
       console.error("Error loading POS database: ", error);
       // Failback to localStorage completely
@@ -238,6 +280,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
       }
     }
     setLoading(false);
+  };
+
+  const handleUpdateOrderStatus = async (orderId: string, docId: string | undefined, newStatus: OrderLifecycleStatus) => {
+    setUpdatingOrderId(orderId);
+    try {
+      if (docId) {
+        try {
+          await updateDoc(doc(db, "orders", docId), {
+            status: newStatus,
+            updatedAt: serverTimestamp()
+          });
+        } catch (fbErr) {
+          console.warn("Firestore order update error:", fbErr);
+        }
+      }
+
+      setCustomerOrders(prev => prev.map(o => o.orderId === orderId ? { ...o, status: newStatus } : o));
+
+      try {
+        const historyStr = localStorage.getItem('almasri_order_history');
+        if (historyStr) {
+          const history: ActiveOrder[] = JSON.parse(historyStr);
+          const updated = history.map(o => o.orderId === orderId ? { ...o, status: newStatus } : o);
+          localStorage.setItem('almasri_order_history', JSON.stringify(updated));
+        }
+        const activeStr = localStorage.getItem('almasri_active_order');
+        if (activeStr) {
+          const active: ActiveOrder = JSON.parse(activeStr);
+          if (active.orderId === orderId) {
+            active.status = newStatus;
+            localStorage.setItem('almasri_active_order', JSON.stringify(active));
+          }
+        }
+      } catch {
+        // safe fallback
+      }
+
+      triggerNotification(`🚚 تم تحديث حالة الطلب #${orderId} إلى: ${ORDER_STATUS_LABELS[newStatus]?.label || newStatus}`);
+    } catch (err) {
+      console.error("Order status update failure:", err);
+      triggerNotification("⚠️ تعذر تحديث حالة الطلب، يرجى المحاولة لاحقاً.");
+    } finally {
+      setUpdatingOrderId(null);
+    }
   };
 
   const seedDefaultProducts = async () => {
@@ -708,14 +794,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
 
   // --- Manager Portal Role Actions (Edit / Void - Requirement 3) ---
   const handleVoidInvoice = async (invoiceId: string) => {
-    // Role Gate check - Secure Token validation (Pillar 1)
-    if ((currentRole !== 'manager' && currentRole !== 'executive') || 
-        (roleToken !== 'TOKEN_MGR_POS_2026_SECURE' && roleToken !== 'TOKEN_EXE_POS_9999_SECURE')) {
-      triggerNotification("🔒 فشل التحقق الأمني: يرجى تفعيل رمز مصادقة مدير الفرع أو الإدارة العليا الموثقة بالـ Token!");
-      addHardwareLog(`❌ محاولة إلغاء فاتورة مرفوضة - رمز التوثيق (Token) غير صالح أو منتهي الصلاحية`);
-      return;
-    }
-
     const selectedInv = invoices.find(inv => inv.id === invoiceId);
     if (!selectedInv) return;
 
@@ -794,14 +872,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
 
   // Quick Restock Function inside Stock management panel
   const handleQuickRestock = async (productId: string, amount: number = 50) => {
-    // Role Gate check - Secure Token validation (Pillar 1)
-    if ((currentRole !== 'manager' && currentRole !== 'executive') || 
-        (roleToken !== 'TOKEN_MGR_POS_2026_SECURE' && roleToken !== 'TOKEN_EXE_POS_9999_SECURE')) {
-      triggerNotification("🔒 فشل التحقق الأمني: يرجى تفعيل رمز مصادقة مدير الفرع أو الإدارة العليا الموثقة بالـ Token!");
-      addHardwareLog(`❌ محاولة إعادة تزويد المخزن مرفوضة - رمز التوثيق (Token) غير صالح أو منتهي الصلاحية`);
-      return;
-    }
-
     // Input Validation (Thugra 7)
     if (isNaN(amount) || amount <= 0) {
       triggerNotification("⚠️ قيمة الإمداد بالمخزون يجب أن تكون رقماً أكبر من الصفر!");
@@ -896,15 +966,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
   // --- Product Addition Submit Override (Manager & Executive) ---
   const handleAddProductPOS = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Role Gate check - Secure Token validation (Manager or Executive)
-    const isAuthorized = (currentRole === 'executive' && roleToken === 'TOKEN_EXE_POS_9999_SECURE') ||
-                         (currentRole === 'manager' && roleToken === 'TOKEN_MGR_POS_2026_SECURE');
-    if (!isAuthorized) {
-      triggerNotification("🔒 يرجى تفعيل رمز مصادقة الإدارة (2026 أو 9999) لإضافة صنف جديد!");
-      addHardwareLog(`❌ محاولة إضافة الصنف مرفوضة - يرجى تسجيل الدخول برمز 2026 أو 9999`);
-      setShowRolePinModal('manager');
-      return;
-    }
 
     // Input Validations
     const trimmedName = newProductName.trim();
@@ -970,13 +1031,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
   };
 
   const handleDeleteProductPOS = async (productId: string) => {
-    // Role Gate check - Secure Token validation (Pillar 1)
-    if (currentRole !== 'executive' || roleToken !== 'TOKEN_EXE_POS_9999_SECURE') {
-      triggerNotification("🔒 فشل التحقق الأمني: يرجى تفعيل رمز مصادقة الإدارة العليا أولاً!");
-      addHardwareLog(`❌ محاولة حذف الصنف مرفوضة - الـ Token غير صالح أو منتهي الصلاحية`);
-      return;
-    }
-
     if (window.confirm("هل أنت متأكد من حذف هذا المنتج كلياً من قاعدة البيانات والرفوف؟")) {
       setLoading(true);
       try {
@@ -1123,61 +1177,62 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
         </div>
       </div>
 
-      {/* 2. CORPORATE ROLE SWITCHER (Role-based access requirement 3) */}
+      {/* 2. ADMIN STATUS & LIVE OPERATIONS METRICS */}
       <div className="bg-[#0f0f0f] border border-white/10 p-5 rounded-3xl flex flex-col md:flex-row gap-5 items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-full bg-[#1a1a1a] border border-[#10B981]/30 flex items-center justify-center text-[#10B981]">
-            <Key size={18} />
+            <Shield size={18} />
           </div>
           <div>
-            <h4 className="font-serif font-bold text-sm text-gray-200">صلاحيات نظام المبيعات الفورية POS</h4>
-            <p className="text-xs text-gray-500">اختر منصب المستخدم لتجربة قيود الصلاحيات الفرعية</p>
+            <h4 className="font-serif font-bold text-sm text-gray-200">بوابة الإدارة العائلية العليا (Verified Admin Session)</h4>
+            <p className="text-xs text-gray-500">تم التحقق من الهوية والصلاحيات عبر Firebase Auth — جميع الصلاحيات مفتوحة ومحمية بالقواعد السحابية</p>
           </div>
         </div>
 
-        <div className="flex p-1 bg-[#161616] rounded-2xl gap-2 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-2">
+            <Truck size={14} className="text-emerald-400" />
+            <span className="text-xs font-bold text-gray-300">طلبات الأونلاين:</span>
+            <span className="text-xs font-black text-emerald-400 font-mono">{customerOrders.length}</span>
+          </div>
+          <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-2">
+            <Layers size={14} className="text-gray-400" />
+            <span className="text-xs font-bold text-gray-300">الأصناف بالمتجر:</span>
+            <span className="text-xs font-black text-white font-mono">{products.length}</span>
+          </div>
           <button
-            onClick={() => {
-              setCurrentRole('cashier');
-              setRoleToken(null);
-              setActiveSubTab('pos');
-              triggerNotification("🔒 تم ضبط الحساب بصلاحيات (كاشير محدود) وإبطال الـ Token التوثيقي");
-            }}
-            className={`flex-1 md:flex-initial px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${currentRole === 'cashier' ? 'bg-[#10B981] text-black font-extrabold shadow-lg shadow-[#10B981]/20' : 'text-gray-400 hover:text-white'}`}
+            onClick={() => fetchAllData()}
+            className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs font-bold text-gray-300 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            title="إعادة جلب ومزامنة كافة البيانات من السحابة"
           >
-            <span>كاشير (limited)</span>
-          </button>
-          <button
-            onClick={() => {
-              setShowRolePinModal('manager');
-              setEnteredPin('');
-              setPinError('');
-            }}
-            className={`flex-1 md:flex-initial px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${currentRole === 'manager' ? 'bg-[#10B981] text-black font-extrabold shadow-lg shadow-[#10B981]/20' : 'text-gray-400 hover:text-white'}`}
-          >
-            <span>مدير الفرع</span>
-          </button>
-          <button
-            onClick={() => {
-              setShowRolePinModal('executive');
-              setEnteredPin('');
-              setPinError('');
-            }}
-            className={`flex-1 md:flex-initial px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${currentRole === 'executive' ? 'bg-[#10B981] text-black font-extrabold shadow-lg shadow-[#10B981]/20' : 'text-gray-400 hover:text-white'}`}
-          >
-            <span>الإدارة العليا (BI/All)</span>
+            <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+            <span>تحديث البيانات</span>
           </button>
         </div>
       </div>
 
-      {/* 3. POS ADMIN NAVIGATION BAR */}
+      {/* 3. POS & ADMIN NAVIGATION BAR */}
       <div className="flex border-b border-white/5 overflow-x-auto pb-1 scrollbar-hide">
+        <button
+          onClick={() => setActiveSubTab('orders')}
+          className={`pb-4 px-6 font-bold text-xs whitespace-nowrap transition-all border-b-2 flex items-center gap-2 ${activeSubTab === 'orders' ? 'border-[#10B981] text-[#10B981]' : 'border-transparent text-gray-500 hover:text-white'}`}
+        >
+          <Truck size={14} />
+          <span>إدارة طلبات التوصيل أونلاين ({customerOrders.length})</span>
+        </button>
+        <button
+          onClick={() => setActiveSubTab('inventory')}
+          className={`pb-4 px-6 font-bold text-xs whitespace-nowrap transition-all border-b-2 flex items-center gap-2 ${activeSubTab === 'inventory' ? 'border-[#10B981] text-[#10B981]' : 'border-transparent text-gray-500 hover:text-white'}`}
+        >
+          <Layers size={14} />
+          <span>جرد المخزون وتعديل الأسعار (STOCK)</span>
+        </button>
         <button
           onClick={() => setActiveSubTab('pos')}
           className={`pb-4 px-6 font-bold text-xs whitespace-nowrap transition-all border-b-2 flex items-center gap-2 ${activeSubTab === 'pos' ? 'border-[#10B981] text-[#10B981]' : 'border-transparent text-gray-500 hover:text-white'}`}
         >
           <ShoppingCart size={14} />
-          <span>شاشة البيع والمبيعات (CASHIER POS)</span>
+          <span>شاشة البيع ونقطة الكاشير (CASHIER POS)</span>
         </button>
         <button
           onClick={() => setActiveSubTab('invoices')}
@@ -1185,13 +1240,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
         >
           <Database size={14} />
           <span>مراجعة الفواتير والمرتجعات (INVOICES)</span>
-        </button>
-        <button
-          onClick={() => setActiveSubTab('inventory')}
-          className={`pb-4 px-6 font-bold text-xs whitespace-nowrap transition-all border-b-2 flex items-center gap-2 ${activeSubTab === 'inventory' ? 'border-[#10B981] text-[#10B981]' : 'border-transparent text-gray-500 hover:text-white'}`}
-        >
-          <Layers size={14} />
-          <span>جرد المخزون والتحذيرات (STOCK)</span>
         </button>
         <button
           onClick={() => setActiveSubTab('bi')}
@@ -1210,6 +1258,144 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
       </div>
 
       {/* 4. SUB-TAB VIEWPORT OUTLETS */}
+
+      {/* --- SUB-TAB: ONLINE CUSTOMER ORDERS MANAGEMENT --- */}
+      {activeSubTab === 'orders' && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="bg-[#0d0d0d] border border-white/10 rounded-3xl p-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/5 pb-4 mb-6">
+              <div>
+                <h3 className="font-serif font-bold text-base text-white flex items-center gap-2">
+                  <Truck className="text-[#10B981]" size={18} />
+                  <span>طلبات التوصيل للمنازل (أونلاين)</span>
+                  <span className="text-xs bg-emerald-500/15 text-emerald-400 font-bold px-2.5 py-0.5 rounded-full font-mono">
+                    {customerOrders.length} طلب
+                  </span>
+                </h3>
+                <p className="text-xs text-gray-400 mt-1">
+                  متابعة وتحديث حالات طلبات العملاء فورياً من مرحلة التجهيز إلى التوصيل الفعلي مع انعكاس لحظي للعميل.
+                </p>
+              </div>
+
+              <button
+                onClick={() => fetchAllData()}
+                className="px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+              >
+                <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+                <span>تحديث الطلبات</span>
+              </button>
+            </div>
+
+            {customerOrders.length === 0 ? (
+              <div className="text-center py-16 space-y-3 bg-[#111] rounded-2xl border border-white/5">
+                <Truck size={40} className="mx-auto text-gray-600" />
+                <h4 className="font-bold text-sm text-gray-300">لا توجد طلبات توصيل مسجلة حالياً</h4>
+                <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                  عند قيام العملاء بطلب منتجات من المتجر ستظهر فوراً في هذه اللوحة لتجهيزها وتسليمها لمندوب الشحن.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {customerOrders.map((order) => {
+                  const statusInfo = ORDER_STATUS_LABELS[order.status] || {
+                    label: order.status,
+                    description: '',
+                    step: 1
+                  };
+                  const isUpdating = updatingOrderId === order.orderId;
+
+                  const statusBadgeColor = 
+                    order.status === 'DELIVERED' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                    order.status === 'CANCELLED' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                    order.status === 'OUT_FOR_DELIVERY' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                    order.status === 'READY_FOR_DISPATCH' ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' :
+                    'bg-amber-500/20 text-amber-400 border-amber-500/30';
+
+                  return (
+                    <div 
+                      key={order.orderId}
+                      className="bg-[#141414] border border-white/10 rounded-2xl p-5 hover:border-white/20 transition-all space-y-4"
+                    >
+                      {/* Order Header */}
+                      <div className="flex items-start justify-between gap-3 border-b border-white/5 pb-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-black text-sm text-white">#{order.orderId}</span>
+                            <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${statusBadgeColor}`}>
+                              {statusInfo.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-gray-400 mt-1 font-mono">
+                            <span className="flex items-center gap-1">
+                              <Clock size={12} />
+                              {new Date(order.createdAt).toLocaleDateString('ar-EG', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                            <span>•</span>
+                            <span className="text-gray-300 font-bold">{order.itemsCount} صنف</span>
+                          </div>
+                        </div>
+
+                        <div className="text-left font-mono">
+                          <span className="text-base font-black text-emerald-400">{order.total.toFixed(2)}</span>
+                          <span className="text-xs text-gray-400 mr-1">ج.م</span>
+                          <p className="text-[10px] text-gray-500 font-sans">
+                            {order.paymentMethod === 'CARD_ON_DELIVERY' ? '💳 بطاقة بنكية' : '💵 دفع عند الاستلام'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Customer Details */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs bg-black/30 p-3 rounded-xl border border-white/5">
+                        <div className="flex items-center gap-2 text-gray-300">
+                          <UserIcon size={13} className="text-emerald-400 shrink-0" />
+                          <span className="font-bold truncate">{order.customerName || 'عميل المتجر'}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-gray-300 font-mono">
+                          <Smartphone size={13} className="text-emerald-400 shrink-0" />
+                          <span dir="ltr" className="text-right">{order.customerPhone || 'بدون رقم'}</span>
+                        </div>
+                        <div className="sm:col-span-2 flex items-start gap-2 text-gray-400 text-[11px] mt-1">
+                          <MapPin size={13} className="text-emerald-400 shrink-0 mt-0.5" />
+                          <span className="leading-relaxed">{order.address}</span>
+                        </div>
+                      </div>
+
+                      {/* Status Transition Actions */}
+                      <div className="space-y-2 pt-1 border-t border-white/5">
+                        <span className="text-[10px] text-gray-500 font-bold block">تحديث حالة الطلب:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(['PREPARING', 'READY_FOR_DISPATCH', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'] as OrderLifecycleStatus[]).map((st) => {
+                            const isCurrent = order.status === st;
+                            return (
+                              <button
+                                key={st}
+                                disabled={isCurrent || isUpdating}
+                                onClick={() => handleUpdateOrderStatus(order.orderId, order.docId, st)}
+                                className={`text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                                  isCurrent
+                                    ? 'bg-emerald-500 text-black font-extrabold shadow-sm'
+                                    : 'bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/5 disabled:opacity-40 disabled:cursor-not-allowed'
+                                }`}
+                              >
+                                {ORDER_STATUS_LABELS[st]?.label || st}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* --- SUB-TAB A: CASHIER POS INTERFACE --- */}
       {activeSubTab === 'pos' && (
@@ -1828,36 +2014,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
                     <Plus className="text-[#10B981]" size={14} />
                     <h4 className="font-serif font-bold text-xs text-white">إدراج صنف تجاري جديد في القوائم والسحابة (صلاحية الإدارة)</h4>
                   </div>
-                  <span className="text-[10px] text-gray-400 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5 font-cairo">
-                    💡 الرمز: <strong className="text-emerald-400">2026</strong> (مدير الفرع) أو <strong className="text-emerald-400">9999</strong> (الإدارة العليا)
+                  <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 font-cairo flex items-center gap-1.5 font-bold">
+                    <Check size={12} />
+                    <span>صلاحيات الإدارة مفعلة (إضافة مباشرة)</span>
                   </span>
                 </div>
                 
-                {!((currentRole === 'executive' && roleToken === 'TOKEN_EXE_POS_9999_SECURE') ||
-                   (currentRole === 'manager' && roleToken === 'TOKEN_MGR_POS_2026_SECURE')) ? (
-                  <div className="text-center py-6 text-gray-400 font-semibold text-xs bg-black/40 rounded-xl border border-white/5 flex flex-col items-center justify-center gap-3">
-                    <div className="flex items-center gap-2 text-amber-400 font-bold">
-                      <Shield size={18} />
-                      <span>إضافة أصناف جديدة تتطلب تفعيل صلاحية الإدارة</span>
-                    </div>
-                    <p className="text-[11px] text-gray-400 max-w-md font-cairo leading-relaxed">
-                      يمكن لبابا أو أي فرد من أفراد العائلة تفعيل الإدارة بسهولة وإضافة الأصناف فوراً عبر إدخال رمز الأمان (PIN).
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowRolePinModal('manager');
-                        setEnteredPin('');
-                        setPinError('');
-                      }}
-                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
-                    >
-                      <Key size={14} />
-                      <span>🔑 إدخال رمز الإدارة وتفعيل الإضافة فوراً (رمز: 2026 أو 9999)</span>
-                    </button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleAddProductPOS} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                <form onSubmit={handleAddProductPOS} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
                     
                     <div className="sm:col-span-4 space-y-1">
                       <label className="text-[9px] text-gray-500">اسم المنتج</label>
@@ -1935,7 +2098,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
                     </div>
 
                   </form>
-                )}
               </div>
             </div>
 
@@ -2506,108 +2668,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
         </div>
       )}
 
-      {/* Dynamic PIN Authentication challenge Modal (Securing RBAC) */}
-      {showRolePinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-in fade-in">
-          <div className="bg-[#111] border border-white/10 p-6 rounded-3xl max-w-sm w-full text-right" dir="rtl">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3 mb-4">
-              <h3 className="font-serif font-bold text-base text-gray-100 flex items-center gap-2">
-                <Shield className="text-emerald-400" size={18} />
-                مصادقة الصلاحيات المطلوبة
-              </h3>
-              <button
-                onClick={() => {
-                  setShowRolePinModal(null);
-                  setEnteredPin('');
-                  setPinError('');
-                }}
-                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center text-xs transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-400 mb-4 leading-relaxed">
-              يرجى إدخال رمز الأمان (PIN) المخصص لمنصب{" "}
-              {showRolePinModal === 'manager' ? (
-                <span className="text-emerald-400 font-bold">مدير الفرع</span>
-              ) : (
-                <span className="text-emerald-500 font-bold">الإدارة العليا</span>
-              )}:
-            </p>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                // Validate Pin code
-                const correctPin = showRolePinModal === 'manager' ? '2026' : '9999';
-                if (enteredPin === correctPin) {
-                  // Successful verification - generate simulated secure token
-                  const simulatedToken = showRolePinModal === 'manager' ? 'TOKEN_MGR_POS_2026_SECURE' : 'TOKEN_EXE_POS_9999_SECURE';
-                  setRoleToken(simulatedToken);
-                  setCurrentRole(showRolePinModal);
-                  triggerNotification(`🗝️ تم تأكيد الهوية وتفعيل رمز التوثيق (Token) لـ ${showRolePinModal === 'manager' ? 'مدير فرع' : 'إدارة عليا'}`);
-                  addHardwareLog(`🟢 تم إصدار Token مصادقة أمنية فرعية لرتبة: ${showRolePinModal}`);
-                  setShowRolePinModal(null);
-                  setEnteredPin('');
-                  setPinError('');
-                } else {
-                  setPinError('رمز الأمان غير صحيح! يرجى المحاولة مجدداً.');
-                  setEnteredPin('');
-                }
-              }}
-              className="space-y-4"
-            >
-              <div className="relative">
-                <input
-                  type="password"
-                  maxLength={4}
-                  value={enteredPin}
-                  onChange={(e) => {
-                    const numVal = e.target.value.replace(/[^0-9]/g, '');
-                    setEnteredPin(numVal);
-                    if (pinError) setPinError('');
-                  }}
-                  placeholder="••••"
-                  autoFocus
-                  className="w-full text-center tracking-[1.5em] bg-[#161616] text-[#10B981] font-bold text-2xl rounded-2xl p-4 border border-white/10 outline-none focus:border-[#10B981] font-mono shadow-inner text-left"
-                />
-              </div>
-
-              {pinError && (
-                <p className="text-[11px] text-red-400 font-medium text-center bg-red-950/20 py-2 px-3 rounded-xl border border-red-500/20">
-                  ⚠️ {pinError}
-                </p>
-              )}
-
-              {/* Secure Hints for Evaluators */}
-              <div className="bg-[#181818] rounded-xl p-3 border border-white/5 text-[10px] text-gray-400 space-y-1">
-                <span className="block font-bold text-gray-300 text-[11px] mb-1">رموز مصادقة النظام (بيئة التقييم):</span>
-                <div className="flex justify-between font-mono">
-                  <span>مدير الفرع: <strong className="text-emerald-400 font-bold">2026</strong></span>
-                  <span>الإدارة العليا: <strong className="text-emerald-400 font-bold">9999</strong></span>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={enteredPin.length < 4}
-                  className={`w-full py-3 rounded-xl font-bold text-xs font-sans transition-all flex items-center justify-center gap-1.5 ${
-                    enteredPin.length === 4 
-                      ? 'bg-[#10B981] text-black font-extrabold shadow-lg shadow-[#10B981]/20' 
-                      : 'bg-white/5 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  <Check size={14} />
-                  تحقق ومصادقة الهوية
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
+      {/* End of Dashboard */}
     </div>
   );
 };

@@ -12,6 +12,14 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.admin == true ||
+        request.auth.token.role == 'admin' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -30,7 +38,7 @@ service cloud.firestore {
         && data.price is number && data.price > 0
         && data.category is string && data.category.size() > 0
         && data.stock is number
-        && data.isWeightBased is bool;
+        && (!('isWeightBased' in data) || data.isWeightBased is bool);
     }
 
     function isValidInvoice(data) {
@@ -44,50 +52,60 @@ service cloud.firestore {
         && data.status is string && (data.status == 'synced' || data.status == 'local_pending' || data.status == 'voided');
     }
 
+    // --- Admins Collection ---
+    match /admins/{adminId} {
+      // Signed-in users can verify admin status
+      allow read: if isSignedIn();
+      // Immutable from client, prevents privilege escalation
+      allow write: if false;
+    }
+
+    // --- Users Collection ---
+    match /users/{userId} {
+      // Customers can read and update only their own profile
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
     // --- Products Collection ---
     match /products/{productId} {
-      // Anyone can read product details to render POS catalouge
+      // Public catalog read
       allow read: if true;
       
-      // Creating is restricted to authenticated users matching correct schema
-      allow create: if isSignedIn() && isValidProduct(incoming());
+      // Catalog management restricted to Admins
+      allow create, delete: if isAdmin();
 
-      // Action-driven updates
-      allow update: if (
-        // Action 1: Stock deduction/addition via increment operations, where only 'stock' is modified
-        (incoming().diff(existing()).affectedKeys().hasOnly(['stock']) && incoming().stock is number) ||
-        // Action 2: Standard full-field product updates by Managers / Executives
-        (isSignedIn() && isValidProduct(incoming()))
+      // Action-driven updates: either full admin edit or inventory stock adjustments
+      allow update: if isAdmin() || (
+        incoming().diff(existing()).affectedKeys().hasOnly(['stock']) && 
+        incoming().stock is number
       );
+    }
 
-      // Deleting products is restricted to authenticated managers
-      allow delete: if isSignedIn();
+    // --- Orders Collection ---
+    match /orders/{orderId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if incoming().orderId is string && incoming().orderId.size() <= 64 && incoming().total is number && incoming().total >= 0 && incoming().items is list && incoming().address is string && incoming().address.size() <= 500;
+      allow update: if isAdmin();
+      allow delete: if false;
     }
 
     // --- Invoices Collection ---
     match /invoices/{invoiceId} {
-      // Authenticated POS terminals can scan and read invoices
-      allow read: if isSignedIn();
-      
-      // Anyone logged in as a valid POS cashier can write invoices
-      allow create: if isSignedIn() && isValidInvoice(incoming());
-      
-      // Invoices cannot be deleted, but can be voided (only changing 'status' field to 'voided')
-      allow update: if (
-        isSignedIn() && 
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidInvoice(incoming());
+      allow update: if isAdmin() && 
         isValidInvoice(incoming()) && 
         incoming().diff(existing()).affectedKeys().hasOnly(['status']) && 
         incoming().status == 'voided' && 
-        existing().status != 'voided'
-      );
-      
-      // Absolute Immortality Rule: deleting invoices is strictly blocked
+        existing().status != 'voided';
       allow delete: if false;
     }
 
-    // --- Order Feedback Collection (Sprint 1 & 2) ---
+    // --- Order Feedback Collection ---
     match /orderFeedback/{feedbackId} {
-      allow read: if isSignedIn();
+      // Feedback reading restricted to Admin
+      allow read: if isAdmin();
+      // Customers can submit feedback according to schema
       allow create: if (
         incoming().deliveryRating is number && incoming().deliveryRating >= 1 && incoming().deliveryRating <= 5 &&
         incoming().productRating is number && incoming().productRating >= 1 && incoming().productRating <= 5 &&
@@ -96,19 +114,6 @@ service cloud.firestore {
         incoming().comment is string && incoming().comment.size() <= 1000
       );
       allow update, delete: if false;
-    }
-
-    // --- Orders Collection ---
-    match /orders/{orderId} {
-      allow read: if isSignedIn();
-      allow create: if (
-        incoming().orderId is string && incoming().orderId.size() <= 64 &&
-        incoming().total is number && incoming().total >= 0 &&
-        incoming().items is list &&
-        incoming().address is string && incoming().address.size() <= 500
-      );
-      allow update: if isSignedIn();
-      allow delete: if false;
     }
 
     // --- Category Votes Collection ---
@@ -123,8 +128,8 @@ service cloud.firestore {
 
     // --- Category Subscriptions Collection ---
     match /categorySubscriptions/{subId} {
-      // Authenticated managers can read subscriptions
-      allow read: if isSignedIn();
+      // Subscriptions reading restricted to Admin
+      allow read: if isAdmin();
 
       // Anyone can subscribe with valid category, email, optional categoryName, and timestamp/createdAt
       allow create: if (
@@ -139,9 +144,8 @@ service cloud.firestore {
         )
       );
 
-      // Subscriptions are strictly immutable (no updates or deletes allowed)
+      // Subscriptions are strictly immutable
       allow update, delete: if false;
     }
   }
 }
-

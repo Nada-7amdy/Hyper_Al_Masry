@@ -1,9 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { CustomerAddressDetails, PaymentMethodType } from '../types';
+import { 
+  normalizeArabicNumerals, 
+  normalizeEgyptianPhone, 
+  isValidEgyptianPhone, 
+  EGY_PHONE_REGEX 
+} from '../utils/phone';
 
 describe('Egyptian Realistic Checkout Validation', () => {
-  const EGY_PHONE_REGEX = /^(010|011|012|015)[0-9]{8}$/;
-
   interface CheckoutFormInput {
     customerName: string;
     customerPhone: string;
@@ -24,7 +28,7 @@ describe('Egyptian Realistic Checkout Validation', () => {
       errors.customerName = 'الرجاء إدخال الاسم الكامل (٣ أحرف على الأقل)';
     }
 
-    const cleanPhone = input.customerPhone.trim().replace(/\s+/g, '');
+    const cleanPhone = normalizeEgyptianPhone(input.customerPhone);
     if (!cleanPhone) {
       errors.customerPhone = 'رقم الموبايل إلزامي للتواصل أثناء التوصيل';
     } else if (!EGY_PHONE_REGEX.test(cleanPhone)) {
@@ -86,6 +90,44 @@ describe('Egyptian Realistic Checkout Validation', () => {
     invalidPhones.forEach(phone => {
       expect(EGY_PHONE_REGEX.test(phone)).toBe(false);
     });
+  });
+
+  it('normalizes and accepts Eastern Arabic numerals (٠١٢٧٦٧٥٩٦٠٠) and Persian numerals', () => {
+    // User's exact phone from mobile keyboard
+    const arabicIndicPhone = '٠١٢٧٦٧٥٩٦٠٠';
+    expect(normalizeEgyptianPhone(arabicIndicPhone)).toBe('01276759600');
+    expect(isValidEgyptianPhone(arabicIndicPhone)).toBe(true);
+
+    // Persian numeral variation
+    const persianPhone = '۰۱۱۵۵۵۵۴۴۳۳';
+    expect(normalizeEgyptianPhone(persianPhone)).toBe('01155554433');
+    expect(isValidEgyptianPhone(persianPhone)).toBe(true);
+
+    // Checkout form with Arabic numerals succeeds
+    const arabicPayload: CheckoutFormInput = {
+      customerName: 'كريم عبد العزيز',
+      customerPhone: '٠١٢٧٦٧٥٩٦٠٠',
+      governorate: 'القاهرة',
+      district: 'القاهرة الجديدة (التجمع الخامس)',
+      street: 'شارع التسعين',
+      building: '٤٥',
+      floor: '٣',
+      apartment: '١٢',
+      paymentMethod: 'CASH_ON_DELIVERY'
+    };
+
+    const res = validateCheckout(arabicPayload);
+    expect(res.valid).toBe(true);
+    expect(res.errors.customerPhone).toBeUndefined();
+  });
+
+  it('normalizes spaces, dashes, and international prefixes (+20, 0020, 20)', () => {
+    expect(normalizeEgyptianPhone('+201276759600')).toBe('01276759600');
+    expect(normalizeEgyptianPhone('+20 12 7675 9600')).toBe('01276759600');
+    expect(normalizeEgyptianPhone('00201012345678')).toBe('01012345678');
+    expect(normalizeEgyptianPhone('201123456789')).toBe('01123456789');
+    expect(normalizeEgyptianPhone('012-7675-9600')).toBe('01276759600');
+    expect(normalizeEgyptianPhone(' ٠١٥ ٥٥٥ ٦٦٦ ٧٧ ')).toBe('01555566677');
   });
 
   it('successfully validates complete Egyptian checkout payload', () => {
