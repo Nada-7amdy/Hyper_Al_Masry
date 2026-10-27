@@ -11,7 +11,7 @@ import { TrackingMap } from './components/TrackingMap';
 import { AdminDashboard } from './components/AdminDashboard';
 import { HomeRedesign } from './components/HomeRedesign';
 import { CategoryPage } from './components/CategoryPage';
-import { CATEGORIES, Category, PRODUCTS } from './data';
+import { CATEGORIES, Category, PRODUCTS, getActiveCatalogProducts } from './data';
 import { motion, AnimatePresence } from 'motion/react';
 
 const heroProducts: Product[] = [
@@ -104,6 +104,13 @@ const App = () => {
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+
+  // Dynamic Catalog Products (Reactively synced with Family/Admin Price & Inventory adjustments)
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>(getActiveCatalogProducts());
+
+  useEffect(() => {
+    setCatalogProducts(getActiveCatalogProducts());
+  }, [activeTab]);
 
   // Customer Profile State (Neutral Identity - Issue 5)
   const [customerProfile, setCustomerProfile] = useState<{
@@ -793,6 +800,18 @@ const App = () => {
                           <ShieldCheck size={14} className="text-emerald-500" />
                           <span>فلسفة العلامة ومعايير التغليف الفاخر 🌿</span>
                         </button>
+
+                        <div className="h-px bg-slate-100 dark:bg-white/5 my-1"></div>
+                        <button 
+                          onClick={() => { 
+                            setIsProfileOpen(false); 
+                            setActiveTab(Tab.ADMIN); 
+                          }}
+                          className="w-full text-right py-2 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-2 flex-row-reverse cursor-pointer border border-amber-500/20 transition-colors"
+                        >
+                          <Settings size={14} className="text-amber-500" />
+                          <span>لوحة إدارة الأسعار والمخزن (خاصة بالعائلة) ⚙️</span>
+                        </button>
                         
                         {!customerProfile?.name ? (
                           <button 
@@ -840,7 +859,7 @@ const App = () => {
           selectedCategory ? (
             <CategoryPage 
               category={selectedCategory}
-              products={PRODUCTS}
+              products={catalogProducts}
               addToCart={addToCart}
               cart={cart}
               favorites={favorites}
@@ -862,6 +881,7 @@ const App = () => {
               selectedCategory={selectedCategory}
               onSelectCategory={handleSelectCategory}
               showToast={showToast}
+              products={catalogProducts}
             />
           )
         )}
@@ -880,7 +900,9 @@ const App = () => {
         {activeTab === Tab.TRACKING && <TrackingMap activeOrder={activeOrder} />}
 
         {/* VIEW: ADMIN */}
-        {activeTab === Tab.ADMIN && <AdminDashboard />}
+        {activeTab === Tab.ADMIN && (
+          <AdminDashboard onBackToStore={() => setActiveTab(Tab.EXTERIOR)} />
+        )}
 
         {/* VIEW: PACKAGING */}
         {activeTab === Tab.PACKAGING && (

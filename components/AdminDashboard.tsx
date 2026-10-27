@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../services/firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, increment } from 'firebase/firestore';
 import { Product } from '../types';
+import { getActiveCatalogProducts } from '../data';
 import { 
   Layers, Shield, Cpu, RefreshCw, BarChart2, ShoppingCart, Ban, Edit, Printer, Database, 
   Settings, Search, Plus, Minus, Trash2, Smartphone, CreditCard, DollarSign, Wifi, WifiOff, 
@@ -76,7 +77,11 @@ export interface Invoice {
 
 const CATEGORIES = ['الكل', 'خضروات وفواكه', 'لحوم ومجمدات', 'بقالة ومؤن', 'عطارة'];
 
-export const AdminDashboard = () => {
+export interface AdminDashboardProps {
+  onBackToStore?: () => void;
+}
+
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore }) => {
   // Roles: Core requirement (role-based access)
   const [currentRole, setCurrentRole] = useState<'cashier' | 'manager' | 'executive'>('cashier');
   
@@ -94,6 +99,11 @@ export const AdminDashboard = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+
+  // Price & Stock quick editing states (Family/Admin Price Management)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editPriceInput, setEditPriceInput] = useState<string>('');
+  const [editStockInput, setEditStockInput] = useState<string>('');
   
   // Network Status State (Offline Mode requirement)
   const [isOffline, setIsOffline] = useState(false);
@@ -142,18 +152,55 @@ export const AdminDashboard = () => {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      // Fetch Products
-      const querySnapshot = await getDocs(collection(db, "products"));
-      let productsList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
-      
-      // Auto-Seed if database is empty to guarantee a majestic experience immediately
-      if (productsList.length === 0) {
-        await seedDefaultProducts();
-        const retrySnapshot = await getDocs(collection(db, "products"));
-        productsList = retrySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
+      // Fetch Products from Firestore or fallback to active catalog
+      let productsList: Product[] = [];
+      try {
+        const querySnapshot = await getDocs(collection(db, "products"));
+        productsList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
+      } catch (err) {
+        console.warn("Could not fetch remote products, fallback to catalog:", err);
       }
       
-      // Determine Weight Based status cleanly. Let's make sure it handles Arabic tags or has weights
+      // Auto-Seed or fallback if database is empty or offline
+      if (productsList.length === 0) {
+        try {
+          await seedDefaultProducts();
+          const retrySnapshot = await getDocs(collection(db, "products"));
+          productsList = retrySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
+        } catch {
+          productsList = getActiveCatalogProducts();
+        }
+      }
+
+      // Merge local overrides & custom items if any
+      try {
+        const overrides = JSON.parse(localStorage.getItem('almasri_price_overrides') || '{}');
+        const customs: Product[] = JSON.parse(localStorage.getItem('almasri_custom_products') || '[]');
+        
+        // Apply price and stock overrides to productsList
+        productsList = productsList.map(p => {
+          if (overrides[p.id] !== undefined) {
+            const over = overrides[p.id];
+            if (typeof over === 'object' && over !== null) {
+              return { ...p, ...over };
+            }
+            return { ...p, price: Number(over) };
+          }
+          return p;
+        });
+
+        // Prepend custom products if not already in list
+        const existingIds = new Set(productsList.map(p => p.id));
+        for (const cp of customs) {
+          if (!existingIds.has(cp.id)) {
+            productsList.unshift(cp);
+          }
+        }
+      } catch (e) {
+        console.warn("Error merging local overrides:", e);
+      }
+      
+      // Determine Weight Based status cleanly
       const enrichedProducts = productsList.map(p => ({
         ...p,
         isWeightBased: p.isWeightBased !== undefined ? p.isWeightBased : (
@@ -791,17 +838,75 @@ export const AdminDashboard = () => {
     setLoading(false);
   };
 
-  // --- Executive Product Addition Submit Override ---
-  const handleAddProductPOS = async (e: React.FormEvent) => {
+  // --- Price & Stock Quick Editing Handlers (Family & Store Owner Portal) ---
+  const handleStartEditProduct = (p: Product) => {
+    setEditingProduct(p);
+    setEditPriceInput(String(p.price));
+    setEditStockInput(String(p.stock));
+  };
+
+  const handleSavePriceEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Role Gate check - Secure Token validation (Pillar 1)
-    if (currentRole !== 'executive' || roleToken !== 'TOKEN_EXE_POS_9999_SECURE') {
-      triggerNotification("🔒 فشل التحقق الأمني: يرجى تفعيل رمز مصادقة الإدارة العليا أولاً!");
-      addHardwareLog(`❌ محاولة إضافة الصنف مرفوضة - الـ Token غير صالح أو منتهي الصلاحية`);
+    if (!editingProduct) return;
+    const newPrice = parseFloat(editPriceInput);
+    const newStock = parseInt(editStockInput, 10);
+    if (isNaN(newPrice) || newPrice <= 0) {
+      triggerNotification("⚠️ يرجى إدخال سعر صحيح أكبر من صفر!");
+      return;
+    }
+    if (isNaN(newStock) || newStock < 0) {
+      triggerNotification("⚠️ يرجى إدخال كمية مخزون صحيحة!");
       return;
     }
 
-    // Input Validations (Thugra 7)
+    // 1. Update localStorage overrides
+    try {
+      const overrides = JSON.parse(localStorage.getItem('almasri_price_overrides') || '{}');
+      overrides[editingProduct.id] = { price: newPrice, stock: newStock };
+      localStorage.setItem('almasri_price_overrides', JSON.stringify(overrides));
+
+      // Also update almasri_custom_products if this is a custom product
+      const customs: Product[] = JSON.parse(localStorage.getItem('almasri_custom_products') || '[]');
+      const customIndex = customs.findIndex(c => c.id === editingProduct.id);
+      if (customIndex !== -1) {
+        customs[customIndex] = { ...customs[customIndex], price: newPrice, stock: newStock };
+        localStorage.setItem('almasri_custom_products', JSON.stringify(customs));
+      }
+    } catch (err) {
+      console.warn("Could not save to localStorage: ", err);
+    }
+
+    // 2. Update local state
+    setProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...p, price: newPrice, stock: newStock } : p));
+
+    // 3. Update Firestore if online
+    if (!isOffline) {
+      try {
+        await updateDoc(doc(db, "products", editingProduct.id), { price: newPrice, stock: newStock });
+        addHardwareLog(`🏷️ تم تحديث سعر وكمية (${editingProduct.name}) سحابياً إلى (${newPrice} ج.م / ${newStock} وحدة)`);
+      } catch (fbErr) {
+        console.warn("Firestore price update failed, preserved locally:", fbErr);
+      }
+    }
+
+    triggerNotification(`✅ تم حفظ تعديل "${editingProduct.name}": السعر ${newPrice} ج.م والمخزون ${newStock}!`);
+    setEditingProduct(null);
+  };
+
+  // --- Product Addition Submit Override (Manager & Executive) ---
+  const handleAddProductPOS = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Role Gate check - Secure Token validation (Manager or Executive)
+    const isAuthorized = (currentRole === 'executive' && roleToken === 'TOKEN_EXE_POS_9999_SECURE') ||
+                         (currentRole === 'manager' && roleToken === 'TOKEN_MGR_POS_2026_SECURE');
+    if (!isAuthorized) {
+      triggerNotification("🔒 يرجى تفعيل رمز مصادقة الإدارة (2026 أو 9999) لإضافة صنف جديد!");
+      addHardwareLog(`❌ محاولة إضافة الصنف مرفوضة - يرجى تسجيل الدخول برمز 2026 أو 9999`);
+      setShowRolePinModal('manager');
+      return;
+    }
+
+    // Input Validations
     const trimmedName = newProductName.trim();
     if (!trimmedName) {
       triggerNotification("⚠️ اسم المنتج لا يمكن أن يكون فارغاً أو مسافات بيضاء فقط!");
@@ -833,33 +938,34 @@ export const AdminDashboard = () => {
       rating: 5.0
     };
 
+    let readyItem: Product;
     try {
-      let docRef;
-      try {
-        docRef = await addDoc(collection(db, "products"), customNewProduct);
-      } catch (aErr) {
-        handleFirestoreError(aErr, OperationType.CREATE, "products");
-        throw aErr;
-      }
-
-      const readyItem: Product = { id: docRef.id, ...customNewProduct };
-      setProducts(prev => [readyItem, ...prev]);
-      
-      setNewProductName('');
-      setNewProductPrice('');
-      setNewProductStock('50');
-      setNewProductIsWeight(false);
-
-      triggerNotification(`✨ تم إضافة منتج جديد: ${customNewProduct.name}`);
+      const docRef = await addDoc(collection(db, "products"), customNewProduct);
+      readyItem = { id: docRef.id, ...customNewProduct };
       addHardwareLog(`✨ منتج جديد تم تسجيله بالرقم السحابي: ${docRef.id}`);
     } catch (fbAddErr) {
-      console.error("Firebase store add error: ", fbAddErr);
-      // Failback to list
+      console.warn("Firebase store add error, saving locally: ", fbAddErr);
       const fallbackId = `local_p_${Date.now()}`;
-      const readyItem: Product = { id: fallbackId, ...customNewProduct };
-      setProducts(prev => [readyItem, ...prev]);
-      triggerNotification(`💾 تم حفظ السلعة محلياً لتعثر السحابة.`);
+      readyItem = { id: fallbackId, ...customNewProduct };
+      addHardwareLog(`💾 تم حفظ السلعة محلياً في وضع الأوفلاين: ${fallbackId}`);
     }
+
+    // Save to local custom products list so it reflects in the store instantly
+    try {
+      const customs: Product[] = JSON.parse(localStorage.getItem('almasri_custom_products') || '[]');
+      customs.unshift(readyItem);
+      localStorage.setItem('almasri_custom_products', JSON.stringify(customs));
+    } catch (saveErr) {
+      console.warn("Failed to persist custom product locally:", saveErr);
+    }
+
+    setProducts(prev => [readyItem, ...prev]);
+    setNewProductName('');
+    setNewProductPrice('');
+    setNewProductStock('50');
+    setNewProductIsWeight(false);
+
+    triggerNotification(`✨ تم إضافة منتج جديد بنجاح: ${readyItem.name} (${readyItem.price} ج.م)`);
     setLoading(false);
   };
 
@@ -941,12 +1047,23 @@ export const AdminDashboard = () => {
 
       {/* HEADER CONTROLS HERO: Title & Offline indicators */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 border-b border-white/5 pb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Database size={16} className="text-[#10B981]" />
-            <span className={`text-[10px] uppercase tracking-[0.3em] font-bold ${goldText}`}>بوابة الإشراف الشامل والمبيعات الفورية</span>
+        <div className="flex flex-wrap items-center gap-4">
+          {onBackToStore && (
+            <button
+              onClick={onBackToStore}
+              className="px-4 py-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95"
+            >
+              <ArrowRight size={14} />
+              <span>🏪 العودة لواجهة المتجر</span>
+            </button>
+          )}
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Database size={16} className="text-[#10B981]" />
+              <span className={`text-[10px] uppercase tracking-[0.3em] font-bold ${goldText}`}>بوابة الإشراف الشامل والمبيعات الفورية</span>
+            </div>
+            <h2 className="text-3xl font-serif font-bold">لوحة تحصيل وإدارة هايبر المصري (HyperPOS)</h2>
           </div>
-          <h2 className="text-3xl font-serif font-bold">لوحة تحصيل وإدارة هايبر المصري (HyperPOS)</h2>
         </div>
 
         {/* Dynamic Network Status Indicator + Sync Trigger Block */}
@@ -1655,9 +1772,24 @@ export const AdminDashboard = () => {
                       />
                     </div>
 
-                    {/* Admin/Manager custom restock buttons */}
-                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/5 gap-2">
-                      <div className="flex gap-1.5">
+                    {/* Price & Stock Adjustment Controls */}
+                    <div className="flex flex-wrap justify-between items-center mt-2 pt-2 border-t border-white/5 gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-amber-400 font-mono bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">
+                          {formatEGP(p.price)} ج.م
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleStartEditProduct(p)}
+                          className="px-2 py-1 bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 font-bold text-[10px] rounded-lg border border-amber-500/30 flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+                          title="تعديل السعر والمخزون"
+                        >
+                          <Edit size={10} />
+                          <span>✏️ تعديل السعر</span>
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => handleQuickRestock(p.id, 10)}
                           className="px-2 py-1 bg-[#1a1a1a] hover:bg-[#333] text-gray-300 font-bold text-[9px] rounded-lg border border-white/5"
@@ -1670,36 +1802,59 @@ export const AdminDashboard = () => {
                         >
                           شحن +50
                         </button>
-                      </div>
 
-                      {/* Delete item button only for Senior Executives */}
-                      {currentRole === 'executive' && (
-                        <button
-                          onClick={() => handleDeleteProductPOS(p.id)}
-                          className="p-1.5 bg-red-950/20 hover:bg-red-900/40 text-red-400 rounded-lg transition-colors border border-red-900/10"
-                          title="حذف الصنف نهائياً من الرفوف"
-                        >
-                          <Trash2 size={10} />
-                        </button>
-                      )}
+                        {/* Delete item button only for Senior Executives */}
+                        {currentRole === 'executive' && (
+                          <button
+                            onClick={() => handleDeleteProductPOS(p.id)}
+                            className="p-1.5 bg-red-950/20 hover:bg-red-900/40 text-red-400 rounded-lg transition-colors border border-red-900/10"
+                            title="حذف الصنف نهائياً من الرفوف"
+                          >
+                            <Trash2 size={10} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            {/* Sub-addition section: Add Product FORM only for EXECUTIVE role (Preserves & Elevates original requirements) */}
+            {/* Sub-addition section: Add Product FORM for Manager & Executive */}
             <div className="border-t border-white/5 pt-6 mt-6">
               <div className="bg-[#121212]/50 border-2 border-[#10B981]/10 p-5 rounded-2xl">
-                <div className="flex items-center gap-2 mb-4">
-                  <Plus className="text-[#10B981]" size={14} />
-                  <h4 className="font-serif font-bold text-xs text-white">إدراج صنف تجاري جديد في القوائم والسحابة (صلاحية الإشراف العليا)</h4>
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                  <div className="flex items-center gap-2">
+                    <Plus className="text-[#10B981]" size={14} />
+                    <h4 className="font-serif font-bold text-xs text-white">إدراج صنف تجاري جديد في القوائم والسحابة (صلاحية الإدارة)</h4>
+                  </div>
+                  <span className="text-[10px] text-gray-400 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5 font-cairo">
+                    💡 الرمز: <strong className="text-emerald-400">2026</strong> (مدير الفرع) أو <strong className="text-emerald-400">9999</strong> (الإدارة العليا)
+                  </span>
                 </div>
                 
-                {currentRole !== 'executive' ? (
-                  <div className="text-center py-6 text-gray-500 font-semibold text-xs bg-black/30 rounded-xl border border-white/5 flex flex-col items-center justify-center gap-2">
-                    <Shield size={20} className="text-red-500" />
-                    <span>إضافة أصناف جديدة مغلقة حالياً. يرجى الترفيع لـ (الإدارة العليا) من مفتاح صلاحيات POS لتشغيل هذا النموذج المتقدم.</span>
+                {!((currentRole === 'executive' && roleToken === 'TOKEN_EXE_POS_9999_SECURE') ||
+                   (currentRole === 'manager' && roleToken === 'TOKEN_MGR_POS_2026_SECURE')) ? (
+                  <div className="text-center py-6 text-gray-400 font-semibold text-xs bg-black/40 rounded-xl border border-white/5 flex flex-col items-center justify-center gap-3">
+                    <div className="flex items-center gap-2 text-amber-400 font-bold">
+                      <Shield size={18} />
+                      <span>إضافة أصناف جديدة تتطلب تفعيل صلاحية الإدارة</span>
+                    </div>
+                    <p className="text-[11px] text-gray-400 max-w-md font-cairo leading-relaxed">
+                      يمكن لبابا أو أي فرد من أفراد العائلة تفعيل الإدارة بسهولة وإضافة الأصناف فوراً عبر إدخال رمز الأمان (PIN).
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRolePinModal('manager');
+                        setEnteredPin('');
+                        setPinError('');
+                      }}
+                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                    >
+                      <Key size={14} />
+                      <span>🔑 إدخال رمز الإدارة وتفعيل الإضافة فوراً (رمز: 2026 أو 9999)</span>
+                    </button>
                   </div>
                 ) : (
                   <form onSubmit={handleAddProductPOS} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
@@ -2258,6 +2413,95 @@ export const AdminDashboard = () => {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Dynamic Price & Stock Editing Modal (Store Owners / Family Catalog Management) */}
+      {editingProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
+          <div className="bg-[#121212] border border-amber-500/30 p-6 rounded-3xl max-w-md w-full text-right shadow-2xl" dir="rtl">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400">
+                  <Edit size={16} />
+                </div>
+                <div>
+                  <h3 className="font-serif font-bold text-sm text-white">تعديل سعر ومخزون الصنف</h3>
+                  <p className="text-[10px] text-gray-400">هايبر المصري - تحكم الأسعار المباشر</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingProduct(null)}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center text-xs transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-white/5 p-3 rounded-2xl mb-4 border border-white/5">
+              <span className="text-[10px] text-gray-400 block mb-0.5">اسم الصنف:</span>
+              <h4 className="font-bold text-sm text-emerald-400">{editingProduct.name}</h4>
+              <span className="text-[10px] text-gray-500">القسم: {editingProduct.category} | السعر الحالي: {editingProduct.price} ج.م</span>
+            </div>
+
+            <form onSubmit={handleSavePriceEdit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-300 mb-1.5">
+                  السعر الجديد (بالجنيه المصري EGP)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0.5"
+                    value={editPriceInput}
+                    onChange={(e) => setEditPriceInput(e.target.value)}
+                    required
+                    autoFocus
+                    className="w-full bg-[#181818] border border-white/10 rounded-xl py-3 px-4 text-base font-bold text-amber-400 outline-none focus:border-amber-400 font-mono"
+                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 font-mono">ج.م</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-300 mb-1.5">
+                  كمية المخزون المتوفرة على الرفوف ({editingProduct.isWeightBased ? 'كجم' : 'قطع'})
+                </label>
+                <input
+                  type="number"
+                  step="1"
+                  min="0"
+                  value={editStockInput}
+                  onChange={(e) => setEditStockInput(e.target.value)}
+                  required
+                  className="w-full bg-[#181818] border border-white/10 rounded-xl py-3 px-4 text-base font-bold text-emerald-400 outline-none focus:border-emerald-400 font-mono"
+                />
+              </div>
+
+              <div className="p-3 bg-amber-500/5 rounded-xl border border-amber-500/10 text-[11px] text-amber-300/80 leading-relaxed font-cairo">
+                💡 بمجرد الضغط على <strong>حفظ وتطبيق التعديل</strong>، سيتغير السعر فوراً في كامل أرجاء المتجر وقوائم الأقسام وسلة المشتريات.
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold text-xs rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                >
+                  <Save size={14} />
+                  <span>حفظ وتطبيق التعديل الآن</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingProduct(null)}
+                  className="py-3 px-5 bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-bold rounded-xl transition-all"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

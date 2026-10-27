@@ -5,7 +5,7 @@ import {
   ShoppingBag as CartIcon, Camera, Tag, MapPin, Building, Home, PlusCircle, Navigation
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, Category, CATEGORIES, PRODUCTS, POPULAR_SEARCHES, RECENT_SEARCHES, SUGGESTIONS } from '../data';
+import { Product, Category, CATEGORIES, PRODUCTS, POPULAR_SEARCHES, RECENT_SEARCHES, SUGGESTIONS, getActiveCatalogProducts } from '../data';
 import { Tab } from '../types';
 import { Button, Card, Chip, Input, ProductCard, CategoryCard, Modal, Loader, EmptyState, formatPrice } from './DesignSystem';
 
@@ -154,6 +154,7 @@ interface HomeRedesignProps {
   selectedCategory: Category | null;
   onSelectCategory: (category: Category | null) => void;
   showToast?: (message: string, type?: 'success' | 'info') => void;
+  products?: Product[];
 }
 
 export const HomeRedesign: React.FC<HomeRedesignProps> = ({
@@ -166,14 +167,16 @@ export const HomeRedesign: React.FC<HomeRedesignProps> = ({
   cartTotal,
   selectedCategory,
   onSelectCategory,
-  showToast = (_msg: string, _type?: 'success' | 'info') => {}
+  showToast = (_msg: string, _type?: 'success' | 'info') => {},
+  products
 }) => {
-  // Filter product sections from full master products list
-  const dealProducts = PRODUCTS.filter(p => p.isDeal);
-  const bestSellers = PRODUCTS.filter(p => p.isBestSeller);
-  const freshProducts = PRODUCTS.filter(p => p.isFresh);
-  const newArrivals = PRODUCTS.filter(p => p.isRecommended);
-  const weeklyOffers = PRODUCTS.filter(p => p.isSeasonal);
+  // Filter product sections from full master products list or active catalog
+  const activeProducts = products || getActiveCatalogProducts();
+  const dealProducts = activeProducts.filter(p => p.isDeal);
+  const bestSellers = activeProducts.filter(p => p.isBestSeller);
+  const freshProducts = activeProducts.filter(p => p.isFresh);
+  const newArrivals = activeProducts.filter(p => p.isRecommended);
+  const weeklyOffers = activeProducts.filter(p => p.isSeasonal);
   // State for search experience
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -296,7 +299,7 @@ export const HomeRedesign: React.FC<HomeRedesignProps> = ({
     setScannerStep('scanning');
     
     setTimeout(() => {
-      const dealProd = PRODUCTS.find(p => p.id === 'p_deal_2') || PRODUCTS[0];
+      const dealProd = activeProducts.find(p => p.id === 'p_deal_2') || activeProducts[0];
       setScannedProduct(dealProd);
       setScannerStep('found');
       

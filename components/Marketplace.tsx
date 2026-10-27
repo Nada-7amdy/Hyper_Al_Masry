@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, ShoppingBag, Star, Filter } from 'lucide-react';
 import { Product, CartItem } from '../types';
-import { PRODUCTS } from '../data';
+import { PRODUCTS, getActiveCatalogProducts } from '../data';
 import { db } from '../services/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { Button, Card, Chip, Input, ProductCard, CategoryCard, Loader, EmptyState, formatPrice } from './DesignSystem';
@@ -55,9 +55,26 @@ export const Marketplace: React.FC<MarketplaceProps> = ({
           console.warn("Firestore unreachable, using verified catalog fallback:", dbError);
         }
 
-        // 2. Fallback to verified catalog if Firestore is empty or offline
+        // 2. Fallback to active catalog (with price overrides & custom items)
         if (realProducts.length === 0) {
-          realProducts = [...PRODUCTS];
+          realProducts = getActiveCatalogProducts();
+        } else {
+          // Apply any local price overrides to remote products if present
+          try {
+            const overrides = JSON.parse(localStorage.getItem('almasri_price_overrides') || '{}');
+            realProducts = realProducts.map(p => {
+              if (overrides[p.id] !== undefined) {
+                const val = overrides[p.id];
+                if (typeof val === 'object' && val !== null) {
+                  return { ...p, ...val };
+                }
+                return { ...p, price: Number(val) };
+              }
+              return p;
+            });
+          } catch {
+            // ignore
+          }
         }
 
         // 3. Client-side Filter
@@ -70,7 +87,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({
         setProducts(realProducts);
       } catch (error) {
         console.error("Error in marketplace catalog:", error);
-        setProducts([...PRODUCTS]);
+        setProducts(getActiveCatalogProducts());
       }
       setIsLoading(false);
     };

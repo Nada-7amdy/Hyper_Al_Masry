@@ -478,3 +478,27 @@ export const findRecipeByQuery = (query: string): StructuredRecipe | null => {
   return null;
 };
 
+/**
+ * Returns active catalog products merged with family/admin price overrides and newly added items
+ */
+export const getActiveCatalogProducts = (): Product[] => {
+  try {
+    const overrides = JSON.parse(localStorage.getItem('almasri_price_overrides') || '{}');
+    const customs: Product[] = JSON.parse(localStorage.getItem('almasri_custom_products') || '[]');
+    const base = PRODUCTS.map(p => {
+      if (overrides[p.id] !== undefined) {
+        const val = overrides[p.id];
+        if (typeof val === 'object' && val !== null) {
+          return { ...p, ...val };
+        }
+        return { ...p, price: Number(val) };
+      }
+      return p;
+    });
+    return [...customs, ...base];
+  } catch {
+    return PRODUCTS;
+  }
+};
+
+
