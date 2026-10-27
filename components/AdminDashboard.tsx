@@ -3,6 +3,8 @@ import { db } from '../services/firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { Product, ActiveOrder, OrderLifecycleStatus, ORDER_STATUS_LABELS } from '../types';
 import { getActiveCatalogProducts } from '../data';
+import { subscribeToAdminOrders, updateLiveOrderStatus } from '../services/ordersService';
+import { updateProductInFirestore, createProductInFirestore, seedInitialProductsIfEmpty } from '../services/productsService';
 import { 
   Layers, Shield, Cpu, RefreshCw, BarChart2, ShoppingCart, Ban, Edit, Printer, Database, 
   Settings, Search, Plus, Minus, Trash2, Smartphone, CreditCard, DollarSign, Wifi, WifiOff, 
@@ -164,7 +166,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
       // Auto-Seed or fallback if database is empty or offline
       if (productsList.length === 0) {
         try {
-          await seedDefaultProducts();
+          await seedInitialProductsIfEmpty();
           const retrySnapshot = await getDocs(collection(db, "products"));
           productsList = retrySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
         } catch {
@@ -285,17 +287,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
   const handleUpdateOrderStatus = async (orderId: string, docId: string | undefined, newStatus: OrderLifecycleStatus) => {
     setUpdatingOrderId(orderId);
     try {
-      if (docId) {
-        try {
-          await updateDoc(doc(db, "orders", docId), {
-            status: newStatus,
-            updatedAt: serverTimestamp()
-          });
-        } catch (fbErr) {
-          console.warn("Firestore order update error:", fbErr);
-        }
-      }
-
+      await updateLiveOrderStatus(docId || orderId, newStatus);
       setCustomerOrders(prev => prev.map(o => o.orderId === orderId ? { ...o, status: newStatus } : o));
 
       try {
@@ -417,6 +409,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToStore })
 
   useEffect(() => {
     fetchAllData();
+
+    // Subscribe to real-time live customer orders
+    const unsubscribeOrders = subscribeToAdminOrders((liveOrders) => {
+      setCustomerOrders(liveOrders);
+    });
+
+    return () => {
+      unsubscribeOrders();
+    };
   }, []);
 
   // Save changes locally as well

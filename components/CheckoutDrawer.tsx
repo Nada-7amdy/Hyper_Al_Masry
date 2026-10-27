@@ -3,6 +3,7 @@ import { X, MapPin, Phone, User, Home, Building, CreditCard, Banknote, ShieldChe
 import { motion, AnimatePresence } from 'motion/react';
 import { CartItem, PaymentMethodType, CustomerAddressDetails, ActiveOrder } from '../types';
 import { normalizeArabicNumerals, normalizeEgyptianPhone, EGY_PHONE_REGEX } from '../utils/phone';
+import { createLiveOrder } from '../services/ordersService';
 
 interface CheckoutDrawerProps {
   isOpen: boolean;
@@ -121,6 +122,7 @@ export const CheckoutDrawer: React.FC<CheckoutDrawerProps> = ({
       orderId,
       customerName: customerName.trim(),
       customerPhone: normalizedPhone,
+      items: cart,
       itemsCount,
       total: finalTotal,
       subtotal: cartTotal,
@@ -130,8 +132,15 @@ export const CheckoutDrawer: React.FC<CheckoutDrawerProps> = ({
       paymentMethod,
       status: 'PREPARING',
       createdAt: new Date().toISOString(),
-      isSimulatedDemo: true
+      isSimulatedDemo: false
     };
+
+    // Save order in Cloud Firestore
+    try {
+      await createLiveOrder(newOrder, savedProfile?.uid);
+    } catch (orderErr) {
+      console.warn("Could not save live order to Firestore, preserved locally:", orderErr);
+    }
 
     // Save customer profile for future visits
     try {

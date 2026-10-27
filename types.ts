@@ -91,6 +91,7 @@ export interface ActiveOrder {
   orderId: string;
   customerName?: string;
   customerPhone?: string;
+  items?: CartItem[];
   itemsCount: number;
   total: number;
   subtotal?: number;

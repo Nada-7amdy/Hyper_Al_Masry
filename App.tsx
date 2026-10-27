@@ -16,6 +16,7 @@ import { CustomerAuthModal } from './components/CustomerAuthModal';
 import { HomeRedesign } from './components/HomeRedesign';
 import { CategoryPage } from './components/CategoryPage';
 import { CATEGORIES, Category, PRODUCTS, getActiveCatalogProducts } from './data';
+import { subscribeToLiveProducts } from './services/productsService';
 import { motion, AnimatePresence } from 'motion/react';
 
 const heroProducts: Product[] = [
@@ -153,12 +154,15 @@ const App = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
-  // Dynamic Catalog Products (Reactively synced with Family/Admin Price & Inventory adjustments)
+  // Dynamic Catalog Products (Reactively synced with Cloud Firestore & local overrides)
   const [catalogProducts, setCatalogProducts] = useState<Product[]>(getActiveCatalogProducts());
 
   useEffect(() => {
-    setCatalogProducts(getActiveCatalogProducts());
-  }, [activeTab]);
+    const unsubscribe = subscribeToLiveProducts((liveProducts) => {
+      setCatalogProducts(liveProducts);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Customer Profile State (Neutral Identity - Issue 5)
   const [customerProfile, setCustomerProfile] = useState<{

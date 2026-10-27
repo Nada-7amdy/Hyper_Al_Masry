@@ -7,6 +7,7 @@ import {
 import { OrderStatus, ActiveOrder, OrderLifecycleStatus, ORDER_STATUS_LABELS } from '../types';
 import { db } from '../services/firebase';
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { subscribeToCustomerOrderLive } from '../services/ordersService';
 
 export type { ActiveOrder };
 
@@ -70,6 +71,23 @@ export const TrackingMap = memo(({ activeOrder: propOrder, onOrderUpdate }: Trac
       }
     }
   }, [propOrder]);
+
+  // Subscribe to real-time live order updates from Cloud Firestore
+  useEffect(() => {
+    if (!activeOrder?.orderId) return;
+    const unsubscribe = subscribeToCustomerOrderLive(activeOrder.orderId, (liveOrder) => {
+      if (liveOrder) {
+        setActiveOrder(liveOrder);
+        if (liveOrder.hasFeedback) {
+          setIsSubmitted(true);
+        }
+        if (onOrderUpdate) {
+          onOrderUpdate(liveOrder);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [activeOrder?.orderId]);
 
   // Persist order updates
   const saveOrderState = (updated: ActiveOrder) => {
